@@ -772,14 +772,22 @@ func (c *Client) APIHostPorts() ([][]network.HostPort, error) {
 
 // EnsureAvailability ensures the availability of Juju state servers.
 func (c *Client) EnsureAvailability(numStateServers int, cons constraints.Value, series string) (params.StateServersChanges, error) {
-	var result params.StateServersChanges
+	var result params.StateServersChangeResults
 	args := params.StateServersSpec{
+		EnvironTag:      c.st.EnvironTag(),
 		NumStateServers: numStateServers,
 		Constraints:     cons,
 		Series:          series,
 	}
-	err := c.call("EnsureAvailability", args, &result)
-	return result, err
+	c.call("EnsureAvailability", params.StateServersSpecs{[]params.StateServersSpec{args}}, &result)
+	if len(result.Results) != 1 {
+		return params.StateServersChanges{}, fmt.Errorf("Unexpected number of results.")
+	}
+	if result.Results[0].Error == nil {
+		return result.Results[0].Result, nil
+	} else {
+		return params.StateServersChanges{}, result.Results[0].Error
+	}
 }
 
 // AgentVersion reports the version number of the api server.

@@ -1087,9 +1087,33 @@ func stateServersChanges(change state.StateServersChanges) params.StateServersCh
 }
 
 // EnsureAvailability ensures the availability of Juju state servers.
-func (c *Client) EnsureAvailability(args params.StateServersSpec) (params.StateServersChanges, error) {
-	series := args.Series
+func (c *Client) EnsureAvailability(args params.StateServersSpecs) params.StateServersChangeResults {
+	var results params.StateServersChangeResults
+	for _, stateServersSpec := range args.Specs {
+		result, err := c.ensureAvailabilitySingle(stateServersSpec)
+		results.Results = append(results.Results,
+			params.StateServersChangeResult{
+				Result: result,
+				Error:  common.ServerError(err),
+			})
+	}
+	return results
+}
 
+// ensureAvailabilitySingle applies a single StateServersSpec specification to the current environment.
+func (c *Client) ensureAvailabilitySingle(spec params.StateServersSpec) (params.StateServersChanges, error) {
+	// Validate the environment tag if present.
+	if spec.EnvironTag != "" {
+		if _, err := names.ParseEnvironTag(spec.EnvironTag); err != nil {
+			return params.StateServersChanges{}, fmt.Errorf("invalid environment tag: %v", err)
+		}
+		_, err := c.api.state.FindEntity(spec.EnvironTag)
+		if err != nil {
+			return params.StateServersChanges{}, err
+		}
+	}
+
+	series := spec.Series
 	if series == "" {
 		ssi, err := c.api.state.StateServerInfo()
 		if err != nil {
@@ -1110,11 +1134,9 @@ func (c *Client) EnsureAvailability(args params.StateServersSpec) (params.StateS
 		}
 		series = templateMachine.Series()
 	}
-	changes, err := c.api.state.EnsureAvailability(args.NumStateServers, args.Constraints, series)
+	changes, err := c.api.state.EnsureAvailability(spec.NumStateServers, spec.Constraints, series)
 	if err != nil {
 		return params.StateServersChanges{}, err
 	}
-	chg := stateServersChanges(changes)
-
-	return chg, nil
+	return stateServersChanges(changes), nil
 }
