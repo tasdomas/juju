@@ -1162,6 +1162,7 @@ func (c *Client) ensureAvailabilitySingle(spec params.StateServersSpec) params.S
 		}
 	}
 	return params.StateServersChangeResult{
-		Result: stateServersChanges(changes),
+		Result: stateServersChange(changes),
 	}
+
 }

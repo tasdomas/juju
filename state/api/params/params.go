@@ -737,6 +737,7 @@ type LoginResult struct {
 // StateServersSpec contains arguments for
 // the EnsureAvailability client API call.
 type StateServersSpec struct {
+	EnvironTag      string
 	NumStateServers int               `json:num-state-servers`
 	Constraints     constraints.Value `json:constraints,omitempty`
 	// Series is the series to associate with new state server machines.
@@ -744,7 +745,20 @@ type StateServersSpec struct {
 	Series string `json:series,omitempty`
 }
 
-// StateServersChanges lists the servers
+type StateServersSpecs struct {
+	Specs []StateServersSpec
+}
+
+type StateServersChangeResult struct {
+	Result StateServersChanges
+	Error  *Error
+}
+
+type StateServersChangeResults struct {
+	Results []StateServersChangeResult
+}
+
+// StateServersChange lists the servers
 // that have been added, removed or maintained in the
 // pool as a result of an ensure-availability operation.
 type StateServersChanges struct {

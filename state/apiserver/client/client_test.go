@@ -2337,7 +2337,8 @@ func (s *clientSuite) TestClientEnsureAvailability0Preserves5(c *gc.C) {
 	defer assertKill(c, pingerD)
 	// Keeping all alive but one, will bring up 1 more server to preserve 5
 	ensureAvailabilityResult, err = s.APIState.Client().EnsureAvailability(0, emptyCons, defaultSeries)
-	c.Assert(ensureAvailabilityResult.Maintained, gc.DeepEquals, []string{"machine-0", "machine-1", "machine-2", "machine-3"})
+	c.Assert(ensureAvailabilityResult.Maintained, gc.DeepEquals, []string{"machine-0", "machine-1",
+		"machine-2", "machine-3"})
 	c.Assert(ensureAvailabilityResult.Added, gc.DeepEquals, []string{"machine-5"})
 	c.Assert(ensureAvailabilityResult.Removed, gc.HasLen, 0)
 
