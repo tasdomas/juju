@@ -1101,6 +1101,7 @@ func (c *Client) ensureAvailabilitySingle(spec params.StateServersSpec) params.S
 	// Validate the environment tag if present.
 	if spec.EnvironTag != "" {
 		if kind, err := names.TagKind(spec.EnvironTag); err != nil || kind != names.EnvironTagKind {
+
 			return params.StateServersChangeResult{
 				Error: &params.Error{
 					Message: "invalid environment tag",
