@@ -89,7 +89,7 @@ func (s *factorySuite) TestMakeUserParams(c *gc.C) {
 	creator := "eric"
 	password := "sekrit"
 	user := s.Factory.MakeUser(factory.UserParams{
-		Username:    username,
+		Name:        username,
 		DisplayName: displayName,
 		Creator:     creator,
 		Password:    password,
@@ -320,8 +320,6 @@ func (s *factorySuite) TestMakeRelation(c *gc.C) {
 
 func (s *factorySuite) TestMultileParamPanics(c *gc.C) {
 	c.Assert(func() { s.Factory.MakeUser(factory.UserParams{}, factory.UserParams{}) },
-		gc.PanicMatches, "expecting 1 parameter or none")
-	c.Assert(func() { s.Factory.MakeIdentity(factory.IdentityParams{}, factory.IdentityParams{}) },
 		gc.PanicMatches, "expecting 1 parameter or none")
 	c.Assert(func() { s.Factory.MakeMachine(factory.MachineParams{}, factory.MachineParams{}) },
 		gc.PanicMatches, "expecting 1 parameter or none")
