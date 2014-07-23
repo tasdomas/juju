@@ -22,5 +22,6 @@ var (
 	MigrateLocalProviderAgentConfig        = migrateLocalProviderAgentConfig
 
 	// 121 upgrade functions
-	StepsFor121 = stepsFor121
+	StepsFor121                      = stepsFor121
+	MigrateLastConnectionToLastLogin = migrateLastConnectionToLastLogin
 )
