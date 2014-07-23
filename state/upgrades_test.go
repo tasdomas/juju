@@ -1,7 +1,7 @@
 // Copyright 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
-package upgrades_test
+package state
 
 import (
 	"time"
@@ -11,7 +11,6 @@ import (
 	gc "launchpad.net/gocheck"
 
 	jujutesting "github.com/juju/juju/juju/testing"
-	//"github.com/juju/juju/state"
 	"github.com/juju/juju/upgrades"
 )
 
@@ -24,9 +23,6 @@ var _ = gc.Suite(&userLastLoginSuite{})
 
 func (s *userLastLoginSuite) SetUpTest(c *gc.C) {
 	s.JujuConnSuite.SetUpTest(c)
-	s.ctx = &mockContext{
-		state: s.State,
-	}
 }
 
 func (s *userLastLoginSuite) TestLastLoginMigrate(c *gc.C) {
@@ -51,10 +47,10 @@ func (s *userLastLoginSuite) TestLastLoginMigrate(c *gc.C) {
 			Insert: oldDoc,
 		},
 	}
-	err := s.ctx.Run(ops)
+	err := s.State.runTransaction(ops)
 	c.Assert(err, gc.IsNil)
 
-	err = upgrades.MigrateLastConnectionToLastLogin(s.ctx)
+	err = upgrades.MigrateLastConnectionToLastLogin(s.State)
 	c.Assert(err, gc.IsNil)
 	user, err := s.State.User(userId)
 	c.Assert(err, gc.IsNil)

@@ -9,7 +9,6 @@ import (
 	"github.com/juju/loggo"
 	jujutxn "github.com/juju/txn"
 	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/txn"
 
 	"github.com/juju/juju/agent"
 	"github.com/juju/juju/state"
@@ -93,12 +92,6 @@ type Context interface {
 	// AgentConfig returns the agent config for the machine that is being
 	// upgraded.
 	AgentConfig() agent.ConfigSetter
-
-	// DB returns the DB connection.
-	DB() *mgo.Database
-
-	// Run runs the specified transactions
-	Run([]txn.Op) error
 }
 
 // upgradeContext is a default Context implementation.
@@ -111,23 +104,6 @@ type upgradeContext struct {
 	agentConfig agent.ConfigSetter
 	db          *mgo.Database
 	runner      jujutxn.Runner
-}
-
-// DB is defined on the Context interface.
-func (c *upgradeContext) DB() *mgo.Database {
-	if c.db == nil {
-		c.db = c.st.MongoSession().DB("juju")
-	}
-	return c.db
-}
-
-// Run is defined on the Context interface.
-func (c *upgradeContext) Run(ops []txn.Op) error {
-	if c.runner == nil {
-		mgoRunner := txn.NewRunner(c.DB().C("txns"))
-		c.runner = jujutxn.NewRunner(mgoRunner)
-	}
-	return c.runner.RunTransaction(ops)
 }
 
 // APIState is defined on the Context interface.

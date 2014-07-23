@@ -13,7 +13,6 @@ import (
 	jc "github.com/juju/testing/checkers"
 	jujutxn "github.com/juju/txn"
 	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/txn"
 	gc "launchpad.net/gocheck"
 
 	"github.com/juju/juju/agent"
@@ -97,23 +96,6 @@ func (c *mockContext) APIState() *api.State {
 
 func (c *mockContext) State() *state.State {
 	return c.state
-}
-
-// DB is defined on the Context interface.
-func (c *mockContext) DB() *mgo.Database {
-	if c.db == nil {
-		c.db = c.state.MongoSession().DB("juju")
-	}
-	return c.db
-}
-
-// Run is defined on the Context interface.
-func (c *mockContext) Run(ops []txn.Op) error {
-	if c.runner == nil {
-		mgoRunner := txn.NewRunner(c.DB().C("txns"))
-		c.runner = jujutxn.NewRunner(mgoRunner)
-	}
-	return c.runner.RunTransaction(ops)
 }
 
 func (c *mockContext) AgentConfig() agent.ConfigSetter {
