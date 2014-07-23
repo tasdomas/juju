@@ -51,7 +51,7 @@ func migrateLastConnectionToLastLogin(context Context) error {
 				Assert: txn.DocExists,
 				Update: bson.D{
 					{"$set", bson.D{{"lastlogin", lastLogin}}},
-					{"$unset", "lastconnection"},
+					{"$unset", bson.D{{"lastconnection", nil}}},
 				},
 			})
 	}
