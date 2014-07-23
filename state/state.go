@@ -39,10 +39,6 @@ import (
 
 var logger = loggo.GetLogger("juju.state")
 
-const (
-	AdminUser = "admin"
-)
-
 // State represents the state of an environment
 // managed by juju.
 type State struct {
