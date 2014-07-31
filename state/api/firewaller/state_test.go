@@ -4,9 +4,11 @@
 package firewaller_test
 
 import (
+	"github.com/juju/names"
 	gc "launchpad.net/gocheck"
 
 	"github.com/juju/juju/instance"
+	"github.com/juju/juju/network"
 	"github.com/juju/juju/state"
 	apitesting "github.com/juju/juju/state/api/testing"
 	statetesting "github.com/juju/juju/state/testing"
@@ -58,4 +60,36 @@ func (s *stateSuite) TestWatchEnvironMachines(c *gc.C) {
 
 	statetesting.AssertStop(c, w)
 	wc.AssertClosed()
+}
+
+func (s *stateSuite) TestGetMachinePorts(c *gc.C) {
+	ports, err := s.firewaller.GetMachinePorts(s.machines[0].Tag(), names.NewNetworkTag(network.DefaultPublic))
+	c.Assert(err, gc.ErrorMatches, "ports document .* not found")
+	c.Assert(ports, gc.HasLen, 0)
+
+	// Open some ports and check again.
+	err = s.units[0].OpenPort("tcp", 1234)
+	c.Assert(err, gc.IsNil)
+	err = s.units[0].OpenPort("tcp", 4321)
+	c.Assert(err, gc.IsNil)
+	ports, err = s.firewaller.GetMachinePorts(s.machines[0].Tag(), names.NewNetworkTag(network.DefaultPublic))
+	c.Assert(err, gc.IsNil)
+	c.Assert(ports, gc.HasLen, 2)
+
+}
+
+func (s *stateSuite) TestGetMachinePortIds(c *gc.C) {
+	portIds, err := s.firewaller.GetMachinePortIds(s.machines[0].Tag())
+	c.Assert(err, gc.IsNil)
+	c.Assert(portIds, gc.HasLen, 0)
+
+	// Open some ports and check again.
+	err = s.units[0].OpenPort("tcp", 1234)
+	c.Assert(err, gc.IsNil)
+	err = s.units[0].OpenPort("tcp", 4321)
+	c.Assert(err, gc.IsNil)
+	portIds, err = s.firewaller.GetMachinePortIds(s.machines[0].Tag())
+	c.Assert(err, gc.IsNil)
+	c.Assert(portIds, gc.HasLen, 1)
+
 }

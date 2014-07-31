@@ -22,11 +22,12 @@ type FirewallerAPI struct {
 	*common.UnitsWatcher
 	*common.EnvironMachinesWatcher
 	*common.InstanceIdGetter
-
+	*common.OpenedPortsWatcher
 	st            *state.State
 	resources     *common.Resources
 	authorizer    common.Authorizer
 	accessUnit    common.GetAuthFunc
+	accessMachine common.GetAuthFunc
 	accessService common.GetAuthFunc
 }
 
@@ -81,6 +82,11 @@ func NewFirewallerAPI(
 		st,
 		accessMachine,
 	)
+	openedPortsWatcher := common.NewOpenedPortsWatcher(
+		st,
+		resources,
+		accessEnviron,
+	)
 	return &FirewallerAPI{
 		LifeGetter:             lifeGetter,
 		EnvironWatcher:         environWatcher,
@@ -88,10 +94,12 @@ func NewFirewallerAPI(
 		UnitsWatcher:           unitsWatcher,
 		EnvironMachinesWatcher: machinesWatcher,
 		InstanceIdGetter:       instanceIdGetter,
+		OpenedPortsWatcher:     openedPortsWatcher,
 		st:                     st,
 		resources:              resources,
 		authorizer:             authorizer,
 		accessUnit:             accessUnit,
+		accessMachine:          accessMachine,
 		accessService:          accessService,
 	}, nil
 }
@@ -138,6 +146,65 @@ func (f *FirewallerAPI) GetExposed(args params.Entities) (params.BoolResults, er
 		service, err := f.getService(canAccess, tag)
 		if err == nil {
 			result.Results[i].Result = service.IsExposed()
+		}
+		result.Results[i].Error = common.ServerError(err)
+	}
+	return result, nil
+}
+
+// GetMachinePorts returns the port ranges opened on a machine for the specified network as a map mapping
+// port ranges to the tags of the units that opened them.
+func (f *FirewallerAPI) GetMachinePorts(args params.MachinePortsParams) (params.MachinePortsResults, error) {
+	result := params.MachinePortsResults{
+		Results: make([]params.MachinePortsResult, len(args.Params)),
+	}
+	canAccess, err := f.accessMachine()
+	if err != nil {
+		return params.MachinePortsResults{}, err
+	}
+	for i, param := range args.Params {
+		var machine *state.Machine
+		machine, err = f.getMachine(canAccess, param.Machine)
+		if err != nil {
+			result.Results[i].Error = common.ServerError(err)
+			continue
+		}
+		ports, err := machine.OpenedPorts()
+		if err != nil {
+			result.Results[i].Error = common.ServerError(err)
+			continue
+		}
+		portRanges := ports.AllPortRanges()
+		for portRange, unitTag := range portRanges {
+			result.Results[i].Ports = append(result.Results[i].Ports,
+				params.MachinePortDef{
+					Range: portRange,
+					Unit:  params.Entity{Tag: unitTag.String()},
+				})
+		}
+	}
+	return result, nil
+}
+
+// GetMachinePortIds returns the ids of ports documents associated with the specified machine.
+func (f *FirewallerAPI) GetMachinePortIds(args params.Entities) (params.StringsResults, error) {
+	result := params.StringsResults{
+		Results: make([]params.StringsResult, len(args.Entities)),
+	}
+	canAccess, err := f.accessMachine()
+	if err != nil {
+		return params.StringsResults{}, err
+	}
+	for i, entity := range args.Entities {
+		var machine *state.Machine
+		machine, err = f.getMachine(canAccess, entity.Tag)
+		if err == nil {
+			ports, err := machine.AllPorts()
+			if err == nil {
+				for _, port := range ports {
+					result.Results[i].Result = append(result.Results[i].Result, port.Id())
+				}
+			}
 		}
 		result.Results[i].Error = common.ServerError(err)
 	}

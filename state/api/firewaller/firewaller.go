@@ -4,8 +4,10 @@
 package firewaller
 
 import (
+	"github.com/juju/errors"
 	"github.com/juju/names"
 
+	"github.com/juju/juju/network"
 	"github.com/juju/juju/state/api/base"
 	"github.com/juju/juju/state/api/common"
 	"github.com/juju/juju/state/api/params"
@@ -75,4 +77,60 @@ func (st *State) WatchEnvironMachines() (watcher.StringsWatcher, error) {
 	}
 	w := watcher.NewStringsWatcher(st.facade.RawAPICaller(), result)
 	return w, nil
+}
+
+// WatchOpenedPorts returns a StringsWatcher that notifies of changes
+// to the ports open on machines.
+func (st *State) WatchOpenedPorts() (watcher.StringsWatcher, error) {
+	var result params.StringsWatchResult
+	err := st.facade.FacadeCall("WatchOpenedPorts", nil, &result)
+	if err != nil {
+		return nil, err
+	}
+	if err := result.Error; err != nil {
+		return nil, result.Error
+	}
+	w := watcher.NewStringsWatcher(st.facade.RawAPICaller(), result)
+	return w, nil
+}
+
+// GetMachinePorts returns opened port information for machine entities.
+func (st *State) GetMachinePorts(machine names.Tag, net names.Tag) (map[network.PortRange]string, error) {
+	var rawResult params.MachinePortsResults
+	args := params.MachinePortsParams{
+		Params: []params.MachinePortsParam{{Machine: machine.String(), Network: net.String()}},
+	}
+	if err := st.facade.FacadeCall("GetMachinePorts", args, &rawResult); err != nil {
+		return nil, err
+	}
+	if len(rawResult.Results) != 1 {
+		return nil, errors.Errorf("expected 1 result, got %d", len(rawResult.Results))
+	}
+	if err := rawResult.Results[0].Error; err != nil {
+		return nil, err
+	}
+	result := map[network.PortRange]string{}
+	for _, portDef := range rawResult.Results[0].Ports {
+		result[portDef.Range] = portDef.Unit.Tag
+	}
+	return result, nil
+}
+
+// GetMachinePortIds returns ids of port document associated with the specified machine
+func (st *State) GetMachinePortIds(machine names.Tag) ([]string, error) {
+	var result params.StringsResults
+	args := params.Entities{
+		Entities: []params.Entity{{Tag: machine.String()}},
+	}
+	if err := st.facade.FacadeCall("GetMachinePortIds", args, &result); err != nil {
+		return nil, err
+	}
+	if len(result.Results) != 1 {
+		return nil, errors.Errorf("expected 1 result, got %d", len(result.Results))
+	}
+	if err := result.Results[0].Error; err != nil {
+		return nil, err
+	}
+
+	return result.Results[0].Result, nil
 }

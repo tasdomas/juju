@@ -1891,3 +1891,95 @@ func (w *machineInterfacesWatcher) loop() error {
 		}
 	}
 }
+
+//openedPortsWatcher notifies of changes in the openedPortsCollection
+type openedPortsWatcher struct {
+	commonWatcher
+	out chan []string
+}
+
+var _ Watcher = (*openedPortsWatcher)(nil)
+
+// WatchOpenedPorts starts and returns an openedPortsWatcher
+func (st *State) WatchOpenedPorts() StringsWatcher {
+	return newOpenedPortsWatcher(st)
+}
+
+func newOpenedPortsWatcher(st *State) StringsWatcher {
+	w := &openedPortsWatcher{
+		commonWatcher: commonWatcher{st: st},
+		out:           make(chan []string),
+	}
+	go func() {
+		defer w.tomb.Done()
+		defer close(w.out)
+		w.tomb.Kill(w.loop())
+	}()
+
+	return w
+}
+
+// Changes returns the event channel for w
+func (w *openedPortsWatcher) Changes() <-chan []string {
+	return w.out
+}
+
+func (w *openedPortsWatcher) initial() (*set.Strings, error) {
+	var portDocs set.Strings
+	var doc portsDoc
+	ports, closer := w.st.getCollection(openedPortsC)
+	defer closer()
+	iter := ports.Find(nil).Iter()
+	for iter.Next(&doc) {
+		portDocs.Add(doc.Id)
+	}
+	return &portDocs, iter.Close()
+}
+
+func (w *openedPortsWatcher) loop() error {
+	in := make(chan watcher.Change)
+	changes, err := w.initial()
+	if err != nil {
+		return err
+	}
+	w.st.watcher.WatchCollection(openedPortsC, in)
+	defer w.st.watcher.UnwatchCollection(openedPortsC, in)
+	out := w.out
+	for {
+		select {
+		case <-w.tomb.Dying():
+			return tomb.ErrDying
+		case <-w.st.watcher.Dead():
+			return stateWatcherDeadError(w.st.watcher.Err())
+		case ch := <-in:
+			updates, ok := collect(ch, in, w.tomb.Dying())
+			if !ok {
+				return tomb.ErrDying
+			}
+			if err := w.merge(changes, updates); err != nil {
+				return err
+			}
+			if !changes.IsEmpty() {
+				out = w.out
+			}
+		case out <- changes.Values():
+			changes = &set.Strings{}
+			out = nil
+		}
+	}
+}
+
+func (w *openedPortsWatcher) merge(changes *set.Strings, updates map[interface{}]bool) error {
+	for id, exists := range updates {
+		if id, ok := id.(string); ok {
+			if !exists {
+				changes.Add(fmt.Sprintf("-%s", id))
+			} else {
+				changes.Add(id)
+			}
+		} else {
+			return fmt.Errorf("id is not of type string")
+		}
+	}
+	return nil
+}
