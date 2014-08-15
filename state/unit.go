@@ -730,8 +730,18 @@ func (u *Unit) SetStatus(status params.Status, info string, data params.StatusDa
 }
 
 // OpenPort sets the policy of the port with protocol and number to be opened.
-func (u *Unit) OpenPort(protocol string, number int) (err error) {
-	ports, err := NewPortRange(u.Name(), number, number, protocol)
+func (u *Unit) OpenPort(
+	// relation id is a hard-coded parameter until relation-network associations are supported
+	// talk to fwereade before changing this
+	//relationId int,
+	protocol string,
+	number int) (err error) {
+
+	// hard-coded relation id
+	relationId := defaultRelationId
+	networkName := relationNetwork(relationId)
+
+	ports, err := NewPortRange(u.Name(), relationId, number, number, protocol)
 	if err != nil {
 		return err
 	}
@@ -742,8 +752,7 @@ func (u *Unit) OpenPort(protocol string, number int) (err error) {
 		return err
 	}
 
-	// TODO(domas) 2014-08-21 bug #1337804: network id is hard-coded until multiple network support lands
-	machinePorts, err := getOrCreatePorts(u.st, machineId, network.DefaultPublic)
+	machinePorts, err := getOrCreatePorts(u.st, machineId, networkName)
 
 	// Check if this unit is still storing ports in its own document,
 	// if so - attempt a migration.
@@ -766,8 +775,18 @@ func (u *Unit) OpenPort(protocol string, number int) (err error) {
 }
 
 // ClosePort sets the policy of the port with protocol and number to be closed.
-func (u *Unit) ClosePort(protocol string, number int) (err error) {
-	ports, err := NewPortRange(u.Name(), number, number, protocol)
+func (u *Unit) ClosePort(
+	// relation id is a hard-coded parameter until relation-network associations are supported
+	// talk to fwereade before changing this
+	//relationId int,
+	protocol string,
+	number int) (err error) {
+
+	// hard-coded relation id
+	relationId := defaultRelationId
+	networkName := relationNetwork(relationId)
+
+	ports, err := NewPortRange(u.Name(), relationId, number, number, protocol)
 	if err != nil {
 		return err
 	}
@@ -778,8 +797,7 @@ func (u *Unit) ClosePort(protocol string, number int) (err error) {
 		return err
 	}
 
-	// TODO(domas) 2014-08-21 bug #1337804: network id is hard-coded until multiple network support lands
-	machinePorts, err := getOrCreatePorts(u.st, machineId, network.DefaultPublic)
+	machinePorts, err := getOrCreatePorts(u.st, machineId, networkName)
 	if err != nil {
 		return err
 	}
@@ -810,16 +828,23 @@ func (u *Unit) OpenedPorts() []network.Port {
 		unitLogger.Errorf("Cannot retrieve opened ports list for unit %v: %v", u, err)
 		return nil
 	}
-
-	// TODO(domas) 2014-08-21 bug #1337804: network id is hard-coded until multiple network support lands
-	machinePorts, err := getPorts(u.st, machineId, network.DefaultPublic)
+	machine, err := u.st.Machine(machineId)
+	if err != nil {
+		unitLogger.Errorf("Cannot retrieve opened ports list for unit %v: %v", u, err)
+		return nil
+	}
+	machinePortDocs, err := machine.AllPorts()
 	result := []network.Port{}
-	if err == nil {
-		ports := machinePorts.PortsForUnit(u.Name())
-		for _, port := range ports {
-			result = append(result, network.Port{
-				Protocol: port.Protocol,
-				Number:   port.FromPort})
+	if err == nil && len(machinePortDocs) > 0 {
+		for _, portDoc := range machinePortDocs {
+			portRanges := portDoc.PortsForUnit(u.Name())
+			for _, portRange := range portRanges {
+				for port := portRange.FromPort; port <= portRange.ToPort; port++ {
+					result = append(result, network.Port{
+						Protocol: portRange.Protocol,
+						Number:   port})
+				}
+			}
 		}
 	} else {
 		// Read the port list in the unit document if the ports

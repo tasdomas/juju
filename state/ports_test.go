@@ -297,43 +297,43 @@ func (p *PortRangeSuite) TestPortRangeConflicts(c *gc.C) {
 		expectConflict bool
 	}{{
 		"identical ports",
-		state.PortRange{"wordpress/0", 80, 80, "TCP"},
-		state.PortRange{"wordpress/0", 80, 80, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "TCP"},
 		true,
 	}, {
 		"different ports",
-		state.PortRange{"wordpress/0", 80, 80, "TCP"},
-		state.PortRange{"wordpress/0", 90, 90, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 90, 90, "TCP"},
 		false,
 	}, {
 		"touching ranges",
-		state.PortRange{"wordpress/0", 100, 200, "TCP"},
-		state.PortRange{"wordpress/0", 201, 240, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 100, 200, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 201, 240, "TCP"},
 		false,
 	}, {
 		"touching ranges with overlap",
-		state.PortRange{"wordpress/0", 100, 200, "TCP"},
-		state.PortRange{"wordpress/0", 200, 240, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 100, 200, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 200, 240, "TCP"},
 		true,
 	}, {
 		"different protocols",
-		state.PortRange{"wordpress/0", 80, 80, "UDP"},
-		state.PortRange{"wordpress/0", 80, 80, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "UDP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "TCP"},
 		false,
 	}, {
 		"outside range",
-		state.PortRange{"wordpress/0", 100, 200, "TCP"},
-		state.PortRange{"wordpress/0", 80, 80, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 100, 200, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "TCP"},
 		false,
 	}, {
 		"overlap end",
-		state.PortRange{"wordpress/0", 100, 200, "TCP"},
-		state.PortRange{"wordpress/0", 80, 120, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 100, 200, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 120, "TCP"},
 		true,
 	}, {
 		"complete overlap",
-		state.PortRange{"wordpress/0", 100, 200, "TCP"},
-		state.PortRange{"wordpress/0", 120, 140, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 100, 200, "TCP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 120, 140, "TCP"},
 		true,
 	}}
 
@@ -345,10 +345,10 @@ func (p *PortRangeSuite) TestPortRangeConflicts(c *gc.C) {
 }
 
 func (p *PortRangeSuite) TestPortRangeString(c *gc.C) {
-	c.Assert(state.PortRange{"wordpress/0", 80, 80, "TCP"}.String(),
+	c.Assert(state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "TCP"}.String(),
 		gc.Equals,
 		"80-80/tcp")
-	c.Assert(state.PortRange{"wordpress/0", 80, 100, "TCP"}.String(),
+	c.Assert(state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 100, "TCP"}.String(),
 		gc.Equals,
 		"80-100/tcp")
 }
@@ -360,27 +360,27 @@ func (p *PortRangeSuite) TestPortRangeValidity(c *gc.C) {
 		expected string
 	}{{
 		"single valid port",
-		state.PortRange{"wordpress/0", 80, 80, "tcp"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "tcp"},
 		"",
 	}, {
 		"valid port range",
-		state.PortRange{"wordpress/0", 80, 90, "tcp"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 90, "tcp"},
 		"",
 	}, {
 		"valid udp port range",
-		state.PortRange{"wordpress/0", 80, 90, "UDP"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 90, "UDP"},
 		"",
 	}, {
 		"invalid port range boundaries",
-		state.PortRange{"wordpress/0", 90, 80, "tcp"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 90, 80, "tcp"},
 		"invalid port range.*",
 	}, {
 		"invalid protocol",
-		state.PortRange{"wordpress/0", 80, 80, "some protocol"},
+		state.PortRange{"wordpress/0", state.DefaultRelationId, 80, 80, "some protocol"},
 		"invalid protocol.*",
 	}, {
 		"invalid unit",
-		state.PortRange{"invalid unit", 80, 80, "tcp"},
+		state.PortRange{"invalid unit", state.DefaultRelationId, 80, 80, "tcp"},
 		"invalid unit.*",
 	}}
 
