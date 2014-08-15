@@ -33,22 +33,28 @@ const (
 	networkIdPart
 )
 
+// defaultRelationId is used to specify the relation a port range is opened for
+// until this functionality is completely supported.
+const defaultRelationId int = -1
+
 // PortRange represents a single range of ports opened
-// by one unit.
+// by one unit for a specific relation.
 type PortRange struct {
-	UnitName string
-	FromPort int
-	ToPort   int
-	Protocol string
+	UnitName   string
+	RelationId int
+	FromPort   int
+	ToPort     int
+	Protocol   string
 }
 
 // NewPortRange create a new port range.
-func NewPortRange(unitName string, fromPort, toPort int, protocol string) (PortRange, error) {
+func NewPortRange(unitName string, relationId int, fromPort, toPort int, protocol string) (PortRange, error) {
 	p := PortRange{
-		UnitName: unitName,
-		FromPort: fromPort,
-		ToPort:   toPort,
-		Protocol: strings.ToLower(protocol),
+		UnitName:   unitName,
+		RelationId: relationId,
+		FromPort:   fromPort,
+		ToPort:     toPort,
+		Protocol:   strings.ToLower(protocol),
 	}
 	if err := p.Validate(); err != nil {
 		return PortRange{}, err
@@ -97,6 +103,16 @@ type portsDoc struct {
 	Id       string `bson:"_id"`
 	Ports    []PortRange
 	TxnRevno int64 `bson:"txn-revno"`
+}
+
+// relationNetwork returns the networks the specified relation will open ports on.
+// At the moment only the relationId -1 is mapped to the default network. With
+// multiple network support and relation-network associations this will change.
+func relationNetwork(relationId int) string {
+	if relationId == -1 {
+		return network.DefaultPublic
+	}
+	panic(fmt.Sprintf("unsupported relation id for conversion to network name: %q", relationId))
 }
 
 // Ports represents the state of ports on a machine.
@@ -292,7 +308,7 @@ func (p *Ports) migratePorts(u *Unit) error {
 
 		migratedPorts := make([]PortRange, len(u.doc.Ports))
 		for i, port := range u.doc.Ports {
-			portDef, err := NewPortRange(u.Name(), port.Number, port.Number, port.Protocol)
+			portDef, err := NewPortRange(u.Name(), defaultRelationId, port.Number, port.Number, port.Protocol)
 			if err != nil {
 				return nil, fmt.Errorf("cannot migrate port %v: %v", port, err)
 			}
@@ -490,9 +506,7 @@ func addPortsDocOps(st *State,
 
 // getPorts returns the ports document for the specified
 // machine and network.
-func getPorts(st *State,
-	machineId string,
-	networkName string) (*Ports, error) {
+func getPorts(st *State, machineId string, networkName string) (*Ports, error) {
 	openedPorts, closer := st.getCollection(openedPortsC)
 	defer closer()
 

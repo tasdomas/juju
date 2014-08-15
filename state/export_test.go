@@ -243,6 +243,7 @@ func WatcherMakeIdFilter(marker string, receivers ...ActionReceiver) func(interf
 }
 
 var (
-	GetOrCreatePorts = getOrCreatePorts
-	GetPorts         = getPorts
+	GetOrCreatePorts  = getOrCreatePorts
+	GetPorts          = getPorts
+	DefaultRelationId = defaultRelationId
 )
