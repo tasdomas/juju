@@ -199,7 +199,6 @@ var _ ActionsWatcher = (*Unit)(nil)
 
 // PortsWatcher defines an interface implemented by *State
 // that has a single method - WatchOpenedPorts
-
 type PortsWatcher interface {
 	WatchOpenedPorts() StringsWatcher
 }

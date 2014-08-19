@@ -138,7 +138,10 @@ func (fw *Firewaller) loop() error {
 				return watcher.MustErr(fw.portsWatcher)
 			}
 			for _, portsId := range change {
-				fw.openedPortsChanged(portsId)
+				err := fw.openedPortsChanged(portsId)
+				if err != nil {
+					return err
+				}
 			}
 		case change := <-fw.unitsChange:
 			if err := fw.unitsChanged(change); err != nil {
@@ -208,7 +211,10 @@ func (fw *Firewaller) startMachine(machineId string) error {
 		return errors.Annotate(err, "could not check for machine ports document")
 	}
 	for _, portId := range ports {
-		fw.openedPortsChanged(portId)
+		err := fw.openedPortsChanged(portId)
+		if err != nil {
+			return err
+		}
 	}
 
 	go machined.watchLoop(unitw)
@@ -251,7 +257,10 @@ func (fw *Firewaller) startUnit(unit *apifirewaller.Unit, machineId string) erro
 		return errors.Annotate(err, "could not check for machine ports document")
 	}
 	for _, portId := range ports {
-		fw.openedPortsChanged(portId)
+		err := fw.openedPortsChanged(portId)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -435,8 +444,11 @@ func (fw *Firewaller) openedPortsChanged(portsId string) error {
 
 	machined, ok := fw.machineds[machineId]
 	if !ok {
+		// It is common to receive a port change notification before
+		// registering the machine, so if a machine is not found in
+		// firewaller's list, just skip the change.
 		logger.Errorf("failed to lookup machine %v, skipping port change", machineId)
-		return errors.NotFoundf("failed to look up machine %v", machineId)
+		return nil
 	}
 
 	newPortRanges := make(map[network.PortRange]string)
@@ -447,8 +459,11 @@ func (fw *Firewaller) openedPortsChanged(portsId string) error {
 		}
 		unitd, ok := machined.unitds[tag.Id()]
 		if !ok {
+			// It is common to receive port change notification before
+			// registering a unit. Skip handling the port change - it will
+			// be handled when the unit is registered.
 			logger.Errorf("failed to lookup unit %v, skipping port change", tag.Id())
-			return errors.NotFoundf("failed to look up unit %v", tag.Id())
+			return nil
 		}
 		newPortRanges[portRange] = unitd.tag.Id()
 	}
