@@ -46,7 +46,7 @@ func (s *portsWatcherSuite) TestWatchSuccess(c *gc.C) {
 	)
 	result, err := p.WatchOpenedPorts()
 	c.Assert(err, gc.IsNil)
-	c.Assert(result, gc.DeepEquals, params.StringsWatchResult{"1", nil, nil})
+	c.Assert(result, gc.DeepEquals, params.StringsWatchResult{StringsWatcherId: "1", Changes: nil, Error: nil})
 	c.Assert(resources.Count(), gc.Equals, 1)
 }
 
