@@ -22,7 +22,7 @@ type FirewallerAPI struct {
 	*common.UnitsWatcher
 	*common.EnvironMachinesWatcher
 	*common.InstanceIdGetter
-	*common.OpenedPortsWatcher
+	*OpenedPortsWatcher
 	st            *state.State
 	resources     *common.Resources
 	authorizer    common.Authorizer
@@ -84,7 +84,7 @@ func NewFirewallerAPI(
 		st,
 		accessMachine,
 	)
-	openedPortsWatcher := common.NewOpenedPortsWatcher(
+	openedPortsWatcher := NewOpenedPortsWatcher(
 		st,
 		resources,
 		accessEnviron,

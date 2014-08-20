@@ -12,6 +12,7 @@ import (
 	"github.com/juju/juju/state"
 	"github.com/juju/juju/state/api/params"
 	"github.com/juju/juju/state/apiserver/common"
+	apiservertesting "github.com/juju/juju/state/apiserver/testing"
 	"github.com/juju/juju/testing"
 )
 
@@ -30,7 +31,7 @@ func (f *fakeEnvironMachinesWatcher) WatchEnvironMachines() state.StringsWatcher
 	changes := make(chan []string, 1)
 	// Simulate initial event.
 	changes <- f.initial
-	return &fakeStringsWatcher{changes}
+	return &apiservertesting.FakeStringsWatcher{changes}
 }
 
 func (s *environMachinesWatcherSuite) TestWatchEnvironMachines(c *gc.C) {

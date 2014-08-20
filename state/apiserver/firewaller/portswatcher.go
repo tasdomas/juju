@@ -1,11 +1,12 @@
 // Copyright 2014 Canonical Ltd. All rights reserved.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
-package common
+package firewaller
 
 import (
 	"github.com/juju/juju/state"
 	"github.com/juju/juju/state/api/params"
+	"github.com/juju/juju/state/apiserver/common"
 	"github.com/juju/juju/state/watcher"
 )
 
@@ -13,12 +14,12 @@ import (
 // that can be used by various facades.
 type OpenedPortsWatcher struct {
 	st          state.PortsWatcher
-	resources   *Resources
-	getCanWatch GetAuthFunc
+	resources   *common.Resources
+	getCanWatch common.GetAuthFunc
 }
 
 // NewOpenedPortsWatcher returns a new OpenedPortsWatcher.
-func NewOpenedPortsWatcher(st state.PortsWatcher, resources *Resources, getCanWatch GetAuthFunc) *OpenedPortsWatcher {
+func NewOpenedPortsWatcher(st state.PortsWatcher, resources *common.Resources, getCanWatch common.GetAuthFunc) *OpenedPortsWatcher {
 	return &OpenedPortsWatcher{
 		st:          st,
 		resources:   resources,
@@ -38,7 +39,7 @@ func (o *OpenedPortsWatcher) WatchOpenedPorts() (params.StringsWatchResult, erro
 	// Using empty string for the id of the current
 	// environment.
 	if !canWatch("") {
-		return nothing, ErrPerm
+		return nothing, common.ErrPerm
 	}
 
 	watch := o.st.WatchOpenedPorts()
