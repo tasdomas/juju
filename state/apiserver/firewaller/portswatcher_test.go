@@ -1,7 +1,7 @@
 // Copyright 2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
-package common_test
+package firewaller_test
 
 import (
 	"fmt"
@@ -11,6 +11,8 @@ import (
 	"github.com/juju/juju/state"
 	"github.com/juju/juju/state/api/params"
 	"github.com/juju/juju/state/apiserver/common"
+	"github.com/juju/juju/state/apiserver/firewaller"
+	apiservertesting "github.com/juju/juju/state/apiserver/testing"
 	"github.com/juju/juju/testing"
 )
 
@@ -28,7 +30,7 @@ type fakePortsWatcher struct {
 func (f *fakePortsWatcher) WatchOpenedPorts() state.StringsWatcher {
 	changes := make(chan []string, 1)
 	changes <- f.initial
-	return &fakeStringsWatcher{changes}
+	return &apiservertesting.FakeStringsWatcher{changes}
 }
 
 func (s *portsWatcherSuite) TestWatchSuccess(c *gc.C) {
@@ -39,7 +41,7 @@ func (s *portsWatcherSuite) TestWatchSuccess(c *gc.C) {
 	}
 	resources := common.NewResources()
 	s.AddCleanup(func(_ *gc.C) { resources.StopAll() })
-	p := common.NewOpenedPortsWatcher(
+	p := firewaller.NewOpenedPortsWatcher(
 		&fakePortsWatcher{},
 		resources,
 		getCanWatch,
@@ -56,7 +58,7 @@ func (s *portsWatcherSuite) TestWatchGetAuthError(c *gc.C) {
 	}
 	resources := common.NewResources()
 	s.AddCleanup(func(_ *gc.C) { resources.StopAll() })
-	p := common.NewOpenedPortsWatcher(
+	p := firewaller.NewOpenedPortsWatcher(
 		&fakePortsWatcher{},
 		resources,
 		getCanWatch,
@@ -74,7 +76,7 @@ func (s *portsWatcherSuite) TestWatchAuthError(c *gc.C) {
 	}
 	resources := common.NewResources()
 	s.AddCleanup(func(_ *gc.C) { resources.StopAll() })
-	p := common.NewOpenedPortsWatcher(
+	p := firewaller.NewOpenedPortsWatcher(
 		&fakePortsWatcher{},
 		resources,
 		getCanWatch,
