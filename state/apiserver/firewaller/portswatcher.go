@@ -4,6 +4,8 @@
 package firewaller
 
 import (
+	"github.com/juju/names"
+
 	"github.com/juju/juju/state"
 	"github.com/juju/juju/state/api/params"
 	"github.com/juju/juju/state/apiserver/common"
@@ -29,16 +31,36 @@ func NewOpenedPortsWatcher(st state.PortsWatcher, resources *common.Resources, g
 
 // WatchOpenedPorts returns a StringsWatcher that observes the changes in
 // the openedPorts configuration.
-func (o *OpenedPortsWatcher) WatchOpenedPorts() (params.StringsWatchResult, error) {
+func (o *OpenedPortsWatcher) WatchOpenedPorts(args params.Entities) (params.StringsWatchResults, error) {
+	result := params.StringsWatchResults{}
+	result.Results = make([]params.StringsWatchResult, len(args.Entities))
+	for i, entity := range args.Entities {
+		watcherResult, err := o.watchOneEnvOpenedPorts(entity)
+		result.Results[i] = watcherResult
+		result.Results[i].Error = common.ServerError(err)
+	}
+	return result, nil
+}
+
+func (o *OpenedPortsWatcher) watchOneEnvOpenedPorts(arg params.Entity) (params.StringsWatchResult, error) {
 	nothing := params.StringsWatchResult{}
 
 	canWatch, err := o.getCanWatch()
 	if err != nil {
 		return nothing, err
 	}
-	// Using empty string for the id of the current
-	// environment.
-	if !canWatch("") {
+
+	// Using empty string for the id of the current environment.
+	envId := ""
+	if arg.Tag != "" {
+		envTag, err := names.ParseEnvironTag(arg.Tag)
+		if err != nil {
+			return nothing, err
+		}
+		envId = envTag.Id()
+	}
+
+	if !canWatch(envId) {
 		return nothing, common.ErrPerm
 	}
 

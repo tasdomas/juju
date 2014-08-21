@@ -82,15 +82,23 @@ func (st *State) WatchEnvironMachines() (watcher.StringsWatcher, error) {
 // WatchOpenedPorts returns a StringsWatcher that notifies of changes
 // to the ports open on machines.
 func (st *State) WatchOpenedPorts() (watcher.StringsWatcher, error) {
-	var result params.StringsWatchResult
-	err := st.facade.FacadeCall("WatchOpenedPorts", nil, &result)
+	var result params.StringsWatchResults
+
+	// use empty string for the id of the current env
+	args := params.Entities{[]params.Entity{{""}}}
+
+	err := st.facade.FacadeCall("WatchOpenedPorts", args, &result)
 	if err != nil {
 		return nil, err
 	}
-	if err := result.Error; err != nil {
-		return nil, result.Error
+
+	if len(result.Results) != 1 {
+		return nil, errors.Errorf("expected 1 result, got %d", len(result.Results))
 	}
-	w := watcher.NewStringsWatcher(st.facade.RawAPICaller(), result)
+	if err := result.Results[0].Error; err != nil {
+		return nil, err
+	}
+	w := watcher.NewStringsWatcher(st.facade.RawAPICaller(), result.Results[0])
 	return w, nil
 }
 
