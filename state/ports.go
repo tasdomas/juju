@@ -413,7 +413,7 @@ func (p *Ports) removeOps() []txn.Op {
 func (m *Machine) OpenedPorts() (*Ports, error) {
 	pDocId := portsDocId(m.Id(), network.DefaultPublic)
 	ports, err := m.st.Ports(pDocId)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
 	}
 	return ports, nil

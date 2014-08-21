@@ -109,3 +109,19 @@ func (s *machineSuite) TestActiveNetworks(c *gc.C) {
 	c.Assert(networkNames, gc.HasLen, 1)
 	c.Assert(networkNames[0], gc.Equals, network.DefaultPublic)
 }
+
+func (s *machineSuite) TestGetPorts(c *gc.C) {
+	ports, err := s.apiMachine.GetPorts(names.NewNetworkTag(network.DefaultPublic))
+	c.Assert(err, gc.IsNil)
+	c.Assert(ports, gc.HasLen, 0)
+
+	// Open some ports and check again.
+	err = s.units[0].OpenPort("tcp", 1234)
+	c.Assert(err, gc.IsNil)
+	err = s.units[0].OpenPort("tcp", 4321)
+	c.Assert(err, gc.IsNil)
+	ports, err = s.apiMachine.GetPorts(names.NewNetworkTag(network.DefaultPublic))
+	c.Assert(err, gc.IsNil)
+	c.Assert(ports, gc.HasLen, 2)
+
+}

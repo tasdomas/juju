@@ -9,6 +9,7 @@ import (
 	"github.com/juju/names"
 
 	"github.com/juju/juju/instance"
+	"github.com/juju/juju/network"
 	"github.com/juju/juju/state/api/params"
 	"github.com/juju/juju/state/api/watcher"
 )
@@ -85,4 +86,26 @@ func (m *Machine) ActiveNetworks() ([]string, error) {
 	}
 
 	return result.Results[0].Result, nil
+}
+
+// GetPorts returns opened port information for the machine.
+func (m *Machine) GetPorts(net names.Tag) (map[network.PortRange]string, error) {
+	var rawResult params.MachinePortsResults
+	args := params.MachinePortsParams{
+		Params: []params.MachinePortsParam{{Machine: m.tag.String(), Network: net.String()}},
+	}
+	if err := m.st.facade.FacadeCall("GetMachinePorts", args, &rawResult); err != nil {
+		return nil, err
+	}
+	if len(rawResult.Results) != 1 {
+		return nil, errors.Errorf("expected 1 result, got %d", len(rawResult.Results))
+	}
+	if err := rawResult.Results[0].Error; err != nil {
+		return nil, err
+	}
+	result := map[network.PortRange]string{}
+	for _, portDef := range rawResult.Results[0].Ports {
+		result[portDef.Range] = portDef.Unit.Tag
+	}
+	return result, nil
 }
