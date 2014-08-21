@@ -46,9 +46,10 @@ func (s *portsWatcherSuite) TestWatchSuccess(c *gc.C) {
 		resources,
 		getCanWatch,
 	)
-	result, err := p.WatchOpenedPorts()
+	result, err := p.WatchOpenedPorts(params.Entities{[]params.Entity{{""}}})
+	c.Assert(result.Results, gc.HasLen, 1)
 	c.Assert(err, gc.IsNil)
-	c.Assert(result, gc.DeepEquals, params.StringsWatchResult{StringsWatcherId: "1", Changes: nil, Error: nil})
+	c.Assert(result.Results[0], gc.DeepEquals, params.StringsWatchResult{StringsWatcherId: "1", Changes: nil, Error: nil})
 	c.Assert(resources.Count(), gc.Equals, 1)
 }
 
@@ -63,8 +64,10 @@ func (s *portsWatcherSuite) TestWatchGetAuthError(c *gc.C) {
 		resources,
 		getCanWatch,
 	)
-	_, err := p.WatchOpenedPorts()
-	c.Assert(err, gc.ErrorMatches, "pow")
+	result, err := p.WatchOpenedPorts(params.Entities{[]params.Entity{{""}}})
+	c.Assert(err, gc.IsNil)
+	c.Assert(result.Results, gc.HasLen, 1)
+	c.Assert(result.Results[0].Error, gc.ErrorMatches, "pow")
 	c.Assert(resources.Count(), gc.Equals, 0)
 }
 
@@ -81,8 +84,9 @@ func (s *portsWatcherSuite) TestWatchAuthError(c *gc.C) {
 		resources,
 		getCanWatch,
 	)
-	result, err := p.WatchOpenedPorts()
-	c.Assert(err, gc.ErrorMatches, "permission denied")
-	c.Assert(result, gc.DeepEquals, params.StringsWatchResult{})
+	result, err := p.WatchOpenedPorts(params.Entities{[]params.Entity{{""}}})
+	c.Assert(err, gc.IsNil)
+	c.Assert(result.Results, gc.HasLen, 1)
+	c.Assert(result.Results[0].Error, gc.ErrorMatches, "permission denied")
 	c.Assert(resources.Count(), gc.Equals, 0)
 }
