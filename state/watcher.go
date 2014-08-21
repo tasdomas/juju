@@ -1988,17 +1988,14 @@ func (w *openedPortsWatcher) loop() error {
 }
 
 func (w *openedPortsWatcher) merge(changes *set.Strings, updates map[interface{}]bool) error {
-	for id, exists := range updates {
+	for id, _ := range updates {
 		if id, ok := id.(string); ok {
 			change, err := w.transformId(id)
 			if err != nil {
 				return err
 			}
-			if !exists {
-				changes.Add(fmt.Sprintf("-%s", change))
-			} else {
-				changes.Add(change)
-			}
+			changes.Add(change)
+
 		} else {
 			return fmt.Errorf("id is not of type string")
 		}

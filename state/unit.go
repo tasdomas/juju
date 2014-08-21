@@ -742,7 +742,8 @@ func (u *Unit) OpenPort(protocol string, number int) (err error) {
 		return err
 	}
 
-	machinePorts, err := getOrCreatePorts(u.st, machineId)
+	// TODO(domas) 2014-08-21 bug #1337804: network id is hard-coded until multiple network support lands
+	machinePorts, err := getOrCreatePorts(u.st, machineId, network.DefaultPublic)
 
 	// Check if this unit is still storing ports in its own document,
 	// if so - attempt a migration.
@@ -777,7 +778,8 @@ func (u *Unit) ClosePort(protocol string, number int) (err error) {
 		return err
 	}
 
-	machinePorts, err := getOrCreatePorts(u.st, machineId)
+	// TODO(domas) 2014-08-21 bug #1337804: network id is hard-coded until multiple network support lands
+	machinePorts, err := getOrCreatePorts(u.st, machineId, network.DefaultPublic)
 	if err != nil {
 		return err
 	}
@@ -809,7 +811,8 @@ func (u *Unit) OpenedPorts() []network.Port {
 		return nil
 	}
 
-	machinePorts, err := getPorts(u.st, machineId)
+	// TODO(domas) 2014-08-21 bug #1337804: network id is hard-coded until multiple network support lands
+	machinePorts, err := getPorts(u.st, machineId, network.DefaultPublic)
 	result := []network.Port{}
 	if err == nil {
 		ports := machinePorts.PortsForUnit(u.Name())

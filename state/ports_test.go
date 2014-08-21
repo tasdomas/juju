@@ -35,13 +35,13 @@ func (s *PortsDocSuite) SetUpTest(c *gc.C) {
 	err = s.unit.AssignToMachine(s.machine)
 	c.Assert(err, gc.IsNil)
 
-	s.ports, err = state.GetOrCreatePorts(s.State, s.machine.Id())
+	s.ports, err = state.GetOrCreatePorts(s.State, s.machine.Id(), network.DefaultPublic)
 	c.Assert(err, gc.IsNil)
 	c.Assert(s.ports, gc.NotNil)
 }
 
 func (s *PortsDocSuite) TestCreatePorts(c *gc.C) {
-	ports, err := state.GetOrCreatePorts(s.State, s.machine.Id())
+	ports, err := state.GetOrCreatePorts(s.State, s.machine.Id(), network.DefaultPublic)
 	c.Assert(err, gc.IsNil)
 	c.Assert(ports, gc.NotNil)
 	err = ports.OpenPorts(state.PortRange{
@@ -52,7 +52,7 @@ func (s *PortsDocSuite) TestCreatePorts(c *gc.C) {
 	})
 	c.Assert(err, gc.IsNil)
 
-	ports, err = state.GetPorts(s.State, s.machine.Id())
+	ports, err = state.GetPorts(s.State, s.machine.Id(), network.DefaultPublic)
 	c.Assert(err, gc.IsNil)
 	c.Assert(ports, gc.NotNil)
 
@@ -146,7 +146,7 @@ func (s *PortsDocSuite) TestOpenAndClosePorts(c *gc.C) {
 	for i, t := range testCases {
 		c.Logf("test %d: %s", i, t.about)
 
-		ports, err := state.GetOrCreatePorts(s.State, s.machine.Id())
+		ports, err := state.GetOrCreatePorts(s.State, s.machine.Id(), network.DefaultPublic)
 		c.Assert(err, gc.IsNil)
 		c.Assert(ports, gc.NotNil)
 
@@ -242,7 +242,7 @@ func (s *PortsDocSuite) TestRemovePortsDoc(c *gc.C) {
 	err := s.ports.OpenPorts(portRange)
 	c.Assert(err, gc.IsNil)
 
-	ports, err := state.GetPorts(s.State, s.machine.Id())
+	ports, err := state.GetPorts(s.State, s.machine.Id(), network.DefaultPublic)
 	c.Assert(err, gc.IsNil)
 	c.Assert(ports, gc.NotNil)
 
@@ -254,7 +254,7 @@ func (s *PortsDocSuite) TestRemovePortsDoc(c *gc.C) {
 		c.Assert(err, gc.IsNil)
 	}
 
-	ports, err = state.GetPorts(s.State, s.machine.Id())
+	ports, err = state.GetPorts(s.State, s.machine.Id(), network.DefaultPublic)
 	c.Assert(ports, gc.IsNil)
 	c.Assert(err, gc.ErrorMatches, "ports document for machine .* not found")
 }
