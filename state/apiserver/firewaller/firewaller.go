@@ -168,13 +168,15 @@ func (f *FirewallerAPI) GetMachinePorts(args params.MachinePortsParams) (params.
 			result.Results[i].Error = common.ServerError(err)
 			continue
 		}
-		portRanges := ports.AllPortRanges()
-		for portRange, unitTag := range portRanges {
-			result.Results[i].Ports = append(result.Results[i].Ports,
-				params.MachinePortDef{
-					Range: portRange,
-					Unit:  params.Entity{Tag: unitTag.String()},
-				})
+		if ports != nil {
+			portRanges := ports.AllPortRanges()
+			for portRange, unitTag := range portRanges {
+				result.Results[i].Ports = append(result.Results[i].Ports,
+					params.MachinePortDef{
+						Range: portRange,
+						Unit:  params.Entity{Tag: unitTag.String()},
+					})
+			}
 		}
 	}
 	return result, nil

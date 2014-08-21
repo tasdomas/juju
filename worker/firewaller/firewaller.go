@@ -438,12 +438,7 @@ func (fw *Firewaller) unitsChanged(change *unitsChange) error {
 
 // openedPortsChanged handles port change notifications
 func (fw *Firewaller) openedPortsChanged(machineId, networkName string) error {
-	machineTag := names.NewMachineTag(machineId)
 	networkTag := names.NewNetworkTag(networkName)
-	ports, err := fw.st.GetMachinePorts(machineTag, networkTag)
-	if err != nil {
-		return err
-	}
 
 	machined, ok := fw.machineds[machineId]
 	if !ok {
@@ -452,6 +447,16 @@ func (fw *Firewaller) openedPortsChanged(machineId, networkName string) error {
 		// firewaller's list, just skip the change.
 		logger.Errorf("failed to lookup machine %v, skipping port change", machineId)
 		return nil
+	}
+
+	m, err := machined.machine()
+	if err != nil {
+		return err
+	}
+
+	ports, err := m.GetPorts(networkTag)
+	if err != nil {
+		return err
 	}
 
 	newPortRanges := make(map[network.PortRange]string)

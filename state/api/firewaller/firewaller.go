@@ -7,7 +7,6 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/names"
 
-	"github.com/juju/juju/network"
 	"github.com/juju/juju/state/api/base"
 	"github.com/juju/juju/state/api/common"
 	"github.com/juju/juju/state/api/params"
@@ -100,26 +99,4 @@ func (st *State) WatchOpenedPorts() (watcher.StringsWatcher, error) {
 	}
 	w := watcher.NewStringsWatcher(st.facade.RawAPICaller(), result.Results[0])
 	return w, nil
-}
-
-// GetMachinePorts returns opened port information for machine entities.
-func (st *State) GetMachinePorts(machine names.Tag, net names.Tag) (map[network.PortRange]string, error) {
-	var rawResult params.MachinePortsResults
-	args := params.MachinePortsParams{
-		Params: []params.MachinePortsParam{{Machine: machine.String(), Network: net.String()}},
-	}
-	if err := st.facade.FacadeCall("GetMachinePorts", args, &rawResult); err != nil {
-		return nil, err
-	}
-	if len(rawResult.Results) != 1 {
-		return nil, errors.Errorf("expected 1 result, got %d", len(rawResult.Results))
-	}
-	if err := rawResult.Results[0].Error; err != nil {
-		return nil, err
-	}
-	result := map[network.PortRange]string{}
-	for _, portDef := range rawResult.Results[0].Ports {
-		result[portDef.Range] = portDef.Unit.Tag
-	}
-	return result, nil
 }
