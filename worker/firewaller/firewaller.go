@@ -4,6 +4,8 @@
 package firewaller
 
 import (
+	"strings"
+
 	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	"github.com/juju/names"
@@ -13,7 +15,6 @@ import (
 	"github.com/juju/juju/environs/config"
 	"github.com/juju/juju/instance"
 	"github.com/juju/juju/network"
-	"github.com/juju/juju/state"
 	apifirewaller "github.com/juju/juju/state/api/firewaller"
 	"github.com/juju/juju/state/api/params"
 	apiwatcher "github.com/juju/juju/state/api/watcher"
@@ -137,8 +138,13 @@ func (fw *Firewaller) loop() error {
 			if !ok {
 				return watcher.MustErr(fw.portsWatcher)
 			}
-			for _, portsId := range change {
-				err := fw.openedPortsChanged(portsId)
+			for _, machineNetwork := range change {
+				parts := strings.Split(machineNetwork, ":")
+				if len(parts) != 2 {
+					logger.Errorf("unexpected ports change received, ignoring: %q", machineNetwork)
+				}
+				machineId, networkName := parts[0], parts[1]
+				err := fw.openedPortsChanged(machineId, networkName)
 				if err != nil {
 					return err
 				}
@@ -205,13 +211,13 @@ func (fw *Firewaller) startMachine(machineId string) error {
 		}
 	}
 
-	// check if any ports documents are associated with this machine
-	ports, err := fw.st.GetMachinePortIds(names.NewMachineTag(machineId))
+	// check if the machine has ports open on any networks
+	networkNames, err := m.ActiveNetworks()
 	if err != nil {
 		return errors.Annotate(err, "could not check for machine ports document")
 	}
-	for _, portId := range ports {
-		err := fw.openedPortsChanged(portId)
+	for _, networkName := range networkNames {
+		err := fw.openedPortsChanged(machineId, networkName)
 		if err != nil {
 			return err
 		}
@@ -251,13 +257,18 @@ func (fw *Firewaller) startUnit(unit *apifirewaller.Unit, machineId string) erro
 	unitd.serviced = fw.serviceds[serviceName]
 	unitd.serviced.unitds[unitName] = unitd
 
-	// check if any ports documents are associated with this machine
-	ports, err := fw.st.GetMachinePortIds(names.NewMachineTag(machineId))
+	m, err := unitd.machined.machine()
+	if err != nil {
+		return err
+	}
+
+	// check if the machine has ports open on any networks
+	networkNames, err := m.ActiveNetworks()
 	if err != nil {
 		return errors.Annotate(err, "could not check for machine ports document")
 	}
-	for _, portId := range ports {
-		err := fw.openedPortsChanged(portId)
+	for _, networkName := range networkNames {
+		err := fw.openedPortsChanged(machineId, networkName)
 		if err != nil {
 			return err
 		}
@@ -426,15 +437,7 @@ func (fw *Firewaller) unitsChanged(change *unitsChange) error {
 }
 
 // openedPortsChanged handles port change notifications
-func (fw *Firewaller) openedPortsChanged(portsId string) error {
-	machineId, err := state.PortsMachineId(portsId)
-	if err != nil {
-		return err
-	}
-	networkName, err := state.PortsNetworkId(portsId)
-	if err != nil {
-		return err
-	}
+func (fw *Firewaller) openedPortsChanged(machineId, networkName string) error {
 	machineTag := names.NewMachineTag(machineId)
 	networkTag := names.NewNetworkTag(networkName)
 	ports, err := fw.st.GetMachinePorts(machineTag, networkTag)

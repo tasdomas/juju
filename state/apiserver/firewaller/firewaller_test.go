@@ -440,7 +440,7 @@ func (s *firewallerSuite) TestGetMachinePorts(c *gc.C) {
 	}
 }
 
-func (s *firewallerSuite) TestGetMachinePortIds(c *gc.C) {
+func (s *firewallerSuite) TestGetMachineActiveNetworks(c *gc.C) {
 	// open ports on units
 	for i := 0; i <= 2; i++ {
 		err := s.units[i].OpenPort("tcp", (i+1)*10)
@@ -453,15 +453,13 @@ func (s *firewallerSuite) TestGetMachinePortIds(c *gc.C) {
 		{s.machines[2].Tag().String()},
 	}}
 
-	results, err := s.firewaller.GetMachinePortIds(args)
+	results, err := s.firewaller.GetMachineActiveNetworks(args)
 	c.Assert(err, gc.IsNil)
 	c.Assert(results.Results, gc.HasLen, 3)
 
 	for i := 0; i <= 2; i++ {
 		c.Check(results.Results[i].Result, gc.HasLen, 1)
-		mId, err := state.PortsMachineId(results.Results[i].Result[0])
-		c.Check(err, gc.IsNil)
-		c.Check(mId, gc.Equals, s.machines[i].Id())
+		c.Check(results.Results[i].Result[0], gc.Equals, network.DefaultPublic)
 	}
 }
 

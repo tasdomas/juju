@@ -276,13 +276,13 @@ func (s *PortsDocSuite) TestWatchPorts(c *gc.C) {
 	}
 	err := s.ports.OpenPorts(portRange)
 	c.Assert(err, gc.IsNil)
-	wc.AssertChange("m#0#n#juju-public")
+	wc.AssertChange("0:juju-public")
 
 	err = s.ports.Refresh()
 	c.Assert(err, gc.IsNil)
 	err = s.ports.ClosePorts(portRange)
 	c.Assert(err, gc.IsNil)
-	wc.AssertChange("m#0#n#juju-public")
+	wc.AssertChange("0:juju-public")
 }
 
 type PortRangeSuite struct{}

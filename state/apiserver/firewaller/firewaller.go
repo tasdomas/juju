@@ -186,8 +186,8 @@ func (f *FirewallerAPI) GetMachinePorts(args params.MachinePortsParams) (params.
 	return result, nil
 }
 
-// GetMachinePortIds returns the ids of ports documents associated with the specified machine.
-func (f *FirewallerAPI) GetMachinePortIds(args params.Entities) (params.StringsResults, error) {
+// GetMachineActiveNetworks returns the names of the networks the machine has open ports on.
+func (f *FirewallerAPI) GetMachineActiveNetworks(args params.Entities) (params.StringsResults, error) {
 	result := params.StringsResults{
 		Results: make([]params.StringsResult, len(args.Entities)),
 	}
@@ -202,7 +202,10 @@ func (f *FirewallerAPI) GetMachinePortIds(args params.Entities) (params.StringsR
 			ports, err := machine.AllPorts()
 			if err == nil {
 				for _, port := range ports {
-					result.Results[i].Result = append(result.Results[i].Result, port.Id())
+					networkName, err := port.NetworkName()
+					if err == nil {
+						result.Results[i].Result = append(result.Results[i].Result, networkName)
+					}
 				}
 			}
 		}
