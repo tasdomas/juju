@@ -5,6 +5,7 @@ package firewaller
 import (
 	"fmt"
 
+	"github.com/juju/errors"
 	"github.com/juju/names"
 
 	"github.com/juju/juju/instance"
@@ -65,4 +66,23 @@ func (m *Machine) InstanceId() (instance.Id, error) {
 // Life returns the machine's life cycle value.
 func (m *Machine) Life() params.Life {
 	return m.life
+}
+
+// ActiveNetworks returns the names of the networks the machine has ports opened on.
+func (m *Machine) ActiveNetworks() ([]string, error) {
+	var result params.StringsResults
+	args := params.Entities{
+		Entities: []params.Entity{{Tag: m.tag.String()}},
+	}
+	if err := m.st.facade.FacadeCall("GetMachineActiveNetworks", args, &result); err != nil {
+		return nil, err
+	}
+	if len(result.Results) != 1 {
+		return nil, errors.Errorf("expected 1 result, got %d", len(result.Results))
+	}
+	if err := result.Results[0].Error; err != nil {
+		return nil, err
+	}
+
+	return result.Results[0].Result, nil
 }

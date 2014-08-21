@@ -115,22 +115,3 @@ func (st *State) GetMachinePorts(machine names.Tag, net names.Tag) (map[network.
 	}
 	return result, nil
 }
-
-// GetMachinePortIds returns ids of port document associated with the specified machine
-func (st *State) GetMachinePortIds(machine names.Tag) ([]string, error) {
-	var result params.StringsResults
-	args := params.Entities{
-		Entities: []params.Entity{{Tag: machine.String()}},
-	}
-	if err := st.facade.FacadeCall("GetMachinePortIds", args, &result); err != nil {
-		return nil, err
-	}
-	if len(result.Results) != 1 {
-		return nil, errors.Errorf("expected 1 result, got %d", len(result.Results))
-	}
-	if err := result.Results[0].Error; err != nil {
-		return nil, err
-	}
-
-	return result.Results[0].Result, nil
-}

@@ -1919,6 +1919,20 @@ func newOpenedPortsWatcher(st *State) StringsWatcher {
 	return w
 }
 
+// transformId transforms the ports document id into a string
+// <machine-id>:<network-name>
+func (w *openedPortsWatcher) transformId(id string) (string, error) {
+	machineId, err := PortsMachineId(id)
+	if err != nil {
+		return "", err
+	}
+	networkName, err := PortsNetworkId(id)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%s", machineId, networkName), nil
+}
+
 // Changes returns the event channel for w
 func (w *openedPortsWatcher) Changes() <-chan []string {
 	return w.out
@@ -1931,7 +1945,11 @@ func (w *openedPortsWatcher) initial() (*set.Strings, error) {
 	defer closer()
 	iter := ports.Find(nil).Iter()
 	for iter.Next(&doc) {
-		portDocs.Add(doc.Id)
+		change, err := w.transformId(doc.Id)
+		if err != nil {
+			return nil, err
+		}
+		portDocs.Add(change)
 	}
 	return &portDocs, iter.Close()
 }
@@ -1972,10 +1990,14 @@ func (w *openedPortsWatcher) loop() error {
 func (w *openedPortsWatcher) merge(changes *set.Strings, updates map[interface{}]bool) error {
 	for id, exists := range updates {
 		if id, ok := id.(string); ok {
+			change, err := w.transformId(id)
+			if err != nil {
+				return err
+			}
 			if !exists {
-				changes.Add(fmt.Sprintf("-%s", id))
+				changes.Add(fmt.Sprintf("-%s", change))
 			} else {
-				changes.Add(id)
+				changes.Add(change)
 			}
 		} else {
 			return fmt.Errorf("id is not of type string")

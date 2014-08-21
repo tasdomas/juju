@@ -9,6 +9,7 @@ import (
 	gc "launchpad.net/gocheck"
 
 	"github.com/juju/juju/instance"
+	"github.com/juju/juju/network"
 	"github.com/juju/juju/state"
 	"github.com/juju/juju/state/api/firewaller"
 	"github.com/juju/juju/state/api/params"
@@ -91,4 +92,20 @@ func (s *machineSuite) TestWatchUnits(c *gc.C) {
 
 	statetesting.AssertStop(c, w)
 	wc.AssertClosed()
+}
+
+func (s *machineSuite) TestActiveNetworks(c *gc.C) {
+	networkNames, err := s.apiMachine.ActiveNetworks()
+	c.Assert(err, gc.IsNil)
+	c.Assert(networkNames, gc.HasLen, 0)
+
+	// Open some ports and check again.
+	err = s.units[0].OpenPort("tcp", 1234)
+	c.Assert(err, gc.IsNil)
+	err = s.units[0].OpenPort("tcp", 4321)
+	c.Assert(err, gc.IsNil)
+	networkNames, err = s.apiMachine.ActiveNetworks()
+	c.Assert(err, gc.IsNil)
+	c.Assert(networkNames, gc.HasLen, 1)
+	c.Assert(networkNames[0], gc.Equals, network.DefaultPublic)
 }

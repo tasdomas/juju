@@ -4,6 +4,8 @@
 package firewaller_test
 
 import (
+	"strings"
+
 	"github.com/juju/names"
 	gc "launchpad.net/gocheck"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/juju/juju/state"
 	apitesting "github.com/juju/juju/state/api/testing"
 	statetesting "github.com/juju/juju/state/testing"
+	"github.com/juju/juju/testing/factory"
 )
 
 type stateSuite struct {
@@ -78,18 +81,29 @@ func (s *stateSuite) TestGetMachinePorts(c *gc.C) {
 
 }
 
-func (s *stateSuite) TestGetMachinePortIds(c *gc.C) {
-	portIds, err := s.firewaller.GetMachinePortIds(s.machines[0].Tag())
+func (s *stateSuite) TestWatchOpenedPorts(c *gc.C) {
+	watcher, err := s.firewaller.WatchOpenedPorts()
 	c.Assert(err, gc.IsNil)
-	c.Assert(portIds, gc.HasLen, 0)
+	changes := watcher.Changes()
 
-	// Open some ports and check again.
-	err = s.units[0].OpenPort("tcp", 1234)
-	c.Assert(err, gc.IsNil)
-	err = s.units[0].OpenPort("tcp", 4321)
-	c.Assert(err, gc.IsNil)
-	portIds, err = s.firewaller.GetMachinePortIds(s.machines[0].Tag())
-	c.Assert(err, gc.IsNil)
-	c.Assert(portIds, gc.HasLen, 1)
+	change := <-changes
+	c.Assert(change, gc.HasLen, 0)
 
+	factory := factory.NewFactory(s.State)
+	unit := factory.MakeUnit(c, nil)
+	err = unit.OpenPort("tcp", 80)
+	c.Assert(err, gc.IsNil)
+
+	change = <-changes
+	c.Assert(change, gc.HasLen, 1)
+
+	changeComponents := strings.Split(change[0], ":")
+	c.Assert(changeComponents, gc.HasLen, 2)
+
+	assignedMachineId, err := unit.AssignedMachineId()
+	c.Assert(err, gc.IsNil)
+	c.Assert(changeComponents[0], gc.Equals, assignedMachineId)
+	c.Assert(changeComponents[1], gc.Equals, network.DefaultPublic)
+
+	c.Assert(watcher.Stop(), gc.IsNil)
 }
