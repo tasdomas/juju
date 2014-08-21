@@ -163,7 +163,11 @@ func (f *FirewallerAPI) GetMachinePorts(args params.MachinePortsParams) (params.
 			result.Results[i].Error = common.ServerError(err)
 			continue
 		}
-		ports, err := machine.OpenedPorts()
+		net, err := names.ParseNetworkTag(param.Network)
+		if err != nil {
+			result.Results[i].Error = common.ServerError(err)
+		}
+		ports, err := machine.OpenedPorts(net.Id())
 		if err != nil {
 			result.Results[i].Error = common.ServerError(err)
 			continue

@@ -190,8 +190,13 @@ func (p *Ports) OpenPorts(portRange PortRange) (err error) {
 
 		// a new ports document being created
 		if ports.new {
+			networkName, err := ports.NetworkName()
+			if err != nil {
+				return nil, err
+			}
 			return addPortsDocOps(ports.st,
 				machineId,
+				networkName,
 				portRange), nil
 		}
 		ops := []txn.Op{{
@@ -301,7 +306,11 @@ func (p *Ports) migratePorts(u *Unit) error {
 
 		// a new ports document being created
 		if ports.new {
-			ops = addPortsDocOps(ports.st, machineId, migratedPorts...)
+			networkName, err := ports.NetworkName()
+			if err != nil {
+				return nil, err
+			}
+			ops = addPortsDocOps(ports.st, machineId, networkName, migratedPorts...)
 		} else {
 
 			// updating existing ports document
@@ -409,9 +418,8 @@ func (p *Ports) removeOps() []txn.Op {
 }
 
 // OpenedPorts returns ports documents associated with specified machine.
-// TODO(domas) 2014-07-04 bug #1337804: network id is hard-coded until multiple network support lands.
-func (m *Machine) OpenedPorts() (*Ports, error) {
-	pDocId := portsDocId(m.Id(), network.DefaultPublic)
+func (m *Machine) OpenedPorts(networkId string) (*Ports, error) {
+	pDocId := portsDocId(m.Id(), networkId)
 	ports, err := m.st.Ports(pDocId)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
@@ -461,12 +469,11 @@ func portsDocId(machineId string, networkName string) string {
 }
 
 func addPortsDocOps(st *State,
-	// TODO(domas) 2014-07-04 bug #1337804: network id is hard-coded until multiple network support lands.
-	//network string,
 	machineId string,
+	networkName string,
 	ports ...PortRange) []txn.Op {
 
-	id := portsDocId(machineId, network.DefaultPublic)
+	id := portsDocId(machineId, networkName)
 
 	ops := []txn.Op{{
 		C:      machinesC,
@@ -484,14 +491,13 @@ func addPortsDocOps(st *State,
 // getPorts returns the ports document for the specified
 // machine and network.
 func getPorts(st *State,
-	// TODO(domas) 2014-07-04 bug #1337804: network is hardcoded until multiple network support lands.
-	// networkName string,
-	machineId string) (*Ports, error) {
+	machineId string,
+	networkName string) (*Ports, error) {
 	openedPorts, closer := st.getCollection(openedPortsC)
 	defer closer()
 
 	var doc portsDoc
-	id := portsDocId(machineId, network.DefaultPublic)
+	id := portsDocId(machineId, networkName)
 	err := openedPorts.FindId(id).One(&doc)
 	if err == mgo.ErrNotFound {
 		return nil, errors.NotFoundf("ports document for machine %v", machineId)
@@ -506,14 +512,10 @@ func getPorts(st *State,
 
 // getOrCreatePorts attempts to retrieve a ports document
 // and returns a newly created one if it does not exist.
-func getOrCreatePorts(st *State,
-	// Network is hardcoded until multiple network
-	// support lands.
-	//network string,
-	machineId string) (*Ports, error) {
-	ports, err := getPorts(st, machineId)
+func getOrCreatePorts(st *State, machineId string, networkName string) (*Ports, error) {
+	ports, err := getPorts(st, machineId, networkName)
 	if errors.IsNotFound(err) {
-		doc := portsDoc{Id: portsDocId(machineId, network.DefaultPublic)}
+		doc := portsDoc{Id: portsDocId(machineId, networkName)}
 		ports = &Ports{st, doc, true}
 	} else if err != nil {
 		return nil, err
