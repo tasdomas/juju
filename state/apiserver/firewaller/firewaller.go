@@ -45,6 +45,7 @@ func NewFirewallerAPI(
 	accessUnit := getAuthFuncForTagKind(names.UnitTagKind)
 	accessService := getAuthFuncForTagKind(names.ServiceTagKind)
 	accessMachine := getAuthFuncForTagKind(names.MachineTagKind)
+	accessEnviron := getAuthFuncForTagKind(names.EnvironTagKind)
 	accessUnitOrService := common.AuthEither(accessUnit, accessService)
 	accessUnitServiceOrMachine := common.AuthEither(accessUnitOrService, accessMachine)
 
@@ -163,8 +164,12 @@ func (f *FirewallerAPI) GetMachinePorts(args params.MachinePortsParams) (params.
 		return params.MachinePortsResults{}, err
 	}
 	for i, param := range args.Params {
-		var machine *state.Machine
-		machine, err = f.getMachine(canAccess, param.Machine)
+		machineTag, err := names.ParseMachineTag(param.Machine)
+		if err != nil {
+			result.Results[i].Error = common.ServerError(err)
+			continue
+		}
+		machine, err := f.getMachine(canAccess, machineTag)
 		if err != nil {
 			result.Results[i].Error = common.ServerError(err)
 			continue
@@ -172,6 +177,7 @@ func (f *FirewallerAPI) GetMachinePorts(args params.MachinePortsParams) (params.
 		net, err := names.ParseNetworkTag(param.Network)
 		if err != nil {
 			result.Results[i].Error = common.ServerError(err)
+			continue
 		}
 		ports, err := machine.OpenedPorts(net.Id())
 		if err != nil {
@@ -203,7 +209,12 @@ func (f *FirewallerAPI) GetMachineActiveNetworks(args params.Entities) (params.S
 	}
 	for i, entity := range args.Entities {
 		var machine *state.Machine
-		machine, err = f.getMachine(canAccess, entity.Tag)
+		machineTag, err := names.ParseMachineTag(entity.Tag)
+		if err != nil {
+			result.Results[i].Error = common.ServerError(err)
+			continue
+		}
+		machine, err = f.getMachine(canAccess, machineTag)
 		if err == nil {
 			ports, err := machine.AllPorts()
 			if err == nil {
@@ -264,6 +275,16 @@ func (f *FirewallerAPI) getUnit(canAccess common.AuthFunc, tag names.UnitTag) (*
 	// The authorization function guarantees that the tag represents a
 	// unit.
 	return entity.(*state.Unit), nil
+}
+
+func (f *FirewallerAPI) getMachine(canAccess common.AuthFunc, tag names.MachineTag) (*state.Machine, error) {
+	entity, err := f.getEntity(canAccess, tag)
+	if err != nil {
+		return nil, err
+	}
+	// The authorization function guarantees that the tag represents a
+	// machine.
+	return entity.(*state.Machine), nil
 }
 
 func (f *FirewallerAPI) getService(canAccess common.AuthFunc, tag names.ServiceTag) (*state.Service, error) {

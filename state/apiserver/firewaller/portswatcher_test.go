@@ -6,6 +6,7 @@ package firewaller_test
 import (
 	"fmt"
 
+	"github.com/juju/names"
 	gc "launchpad.net/gocheck"
 
 	"github.com/juju/juju/state"
@@ -35,7 +36,7 @@ func (f *fakePortsWatcher) WatchOpenedPorts() state.StringsWatcher {
 
 func (s *portsWatcherSuite) TestWatchSuccess(c *gc.C) {
 	getCanWatch := func() (common.AuthFunc, error) {
-		return func(tag string) bool {
+		return func(tag names.Tag) bool {
 			return true
 		}, nil
 	}
@@ -73,7 +74,7 @@ func (s *portsWatcherSuite) TestWatchGetAuthError(c *gc.C) {
 
 func (s *portsWatcherSuite) TestWatchAuthError(c *gc.C) {
 	getCanWatch := func() (common.AuthFunc, error) {
-		return func(tag string) bool {
+		return func(tag names.Tag) bool {
 			return false
 		}, nil
 	}
@@ -84,7 +85,7 @@ func (s *portsWatcherSuite) TestWatchAuthError(c *gc.C) {
 		resources,
 		getCanWatch,
 	)
-	result, err := p.WatchOpenedPorts(params.Entities{[]params.Entity{{""}}})
+	result, err := p.WatchOpenedPorts(params.Entities{[]params.Entity{{"environment-573cfc28-5c4b-4684-9259-9573a39dc314"}}})
 	c.Assert(err, gc.IsNil)
 	c.Assert(result.Results, gc.HasLen, 1)
 	c.Assert(result.Results[0].Error, gc.ErrorMatches, "permission denied")

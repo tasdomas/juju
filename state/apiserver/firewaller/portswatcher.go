@@ -51,17 +51,15 @@ func (o *OpenedPortsWatcher) watchOneEnvOpenedPorts(arg params.Entity) (params.S
 	}
 
 	// Using empty string for the id of the current environment.
-	envId := ""
+
 	if arg.Tag != "" {
 		envTag, err := names.ParseEnvironTag(arg.Tag)
 		if err != nil {
 			return nothing, err
 		}
-		envId = envTag.Id()
-	}
-
-	if !canWatch(envId) {
-		return nothing, common.ErrPerm
+		if !canWatch(envTag) {
+			return nothing, common.ErrPerm
+		}
 	}
 
 	watch := o.st.WatchOpenedPorts()
