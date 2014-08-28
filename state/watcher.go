@@ -1,6 +1,5 @@
-// Copyright 2012, 2013 Canonical Ltd.
+// Copyright 2012-2014 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
-
 package state
 
 import (
@@ -1988,7 +1987,7 @@ func (w *openedPortsWatcher) loop() error {
 }
 
 func (w *openedPortsWatcher) merge(changes *set.Strings, updates map[interface{}]bool) error {
-	for id, _ := range updates {
+	for id := range updates {
 		if id, ok := id.(string); ok {
 			change, err := w.transformId(id)
 			if err != nil {
