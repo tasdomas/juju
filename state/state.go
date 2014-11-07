@@ -685,7 +685,7 @@ func (st *State) AddCharm(ch charm.Charm, curl *charm.URL, storagePath, bundleSh
 	if err == mgo.ErrNotFound {
 		cdoc := &charmDoc{
 			DocID:        st.docID(curl.String()),
-			URL:          curl,
+			URL:          curl.String(),
 			EnvUUID:      st.EnvironTag().Id(),
 			Meta:         ch.Meta(),
 			Config:       ch.Config(),
@@ -698,7 +698,7 @@ func (st *State) AddCharm(ch charm.Charm, curl *charm.URL, storagePath, bundleSh
 		if err != nil {
 			return nil, errors.Annotatef(err, "cannot add charm %q", curl)
 		}
-		return newCharm(st, cdoc), nil
+		return newCharm(st, cdoc)
 	} else if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -713,7 +713,11 @@ func (st *State) AllCharms() ([]*Charm, error) {
 	var charms []*Charm
 	iter := charmsCollection.Find(nil).Iter()
 	for iter.Next(&cdoc) {
-		charms = append(charms, newCharm(st, &cdoc))
+		charm, err := newCharm(st, &cdoc)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		charms = append(charms, charm)
 	}
 	return charms, errors.Trace(iter.Close())
 }
@@ -740,7 +744,7 @@ func (st *State) Charm(curl *charm.URL) (*Charm, error) {
 	if err := cdoc.Meta.Check(); err != nil {
 		return nil, errors.Annotatef(err, "malformed charm metadata found in state")
 	}
-	return newCharm(st, cdoc), nil
+	return newCharm(st, cdoc)
 }
 
 // LatestPlaceholderCharm returns the latest charm described by the
@@ -759,14 +763,25 @@ func (st *State) LatestPlaceholderCharm(curl *charm.URL) (*Charm, error) {
 	// Find the highest revision.
 	var latest charmDoc
 	for _, doc := range docs {
-		if latest.URL == nil || doc.URL.Revision > latest.URL.Revision {
+		docURL, err := charm.ParseURL(doc.URL)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		var latestURL *charm.URL
+		if latest.URL != "" {
+			latestURL, err = charm.ParseURL(latest.URL)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+		}
+		if latestURL == nil || docURL.Revision > latestURL.Revision {
 			latest = doc
 		}
 	}
-	if latest.URL == nil {
+	if latest.URL == "" {
 		return nil, errors.NotFoundf("placeholder charm %q", noRevURL)
 	}
-	return newCharm(st, &latest), nil
+	return newCharm(st, &latest)
 }
 
 // PrepareLocalCharmUpload must be called before a local charm is
@@ -801,8 +816,12 @@ func (st *State) PrepareLocalCharmUpload(curl *charm.URL) (chosenUrl *charm.URL,
 		// Find the highest revision.
 		maxRevision := -1
 		for _, doc := range docs {
-			if doc.URL.Revision > maxRevision {
-				maxRevision = doc.URL.Revision
+			docURL, err := charm.ParseURL(doc.URL)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			if docURL.Revision > maxRevision {
+				maxRevision = docURL.Revision
 			}
 		}
 
@@ -817,7 +836,7 @@ func (st *State) PrepareLocalCharmUpload(curl *charm.URL) (chosenUrl *charm.URL,
 		uploadedCharm := &charmDoc{
 			DocID:         st.docID(chosenUrl.String()),
 			EnvUUID:       st.EnvironTag().Id(),
-			URL:           chosenUrl,
+			URL:           chosenUrl.String(),
 			PendingUpload: true,
 		}
 		ops := []txn.Op{{
@@ -874,7 +893,7 @@ func (st *State) PrepareStoreCharmUpload(curl *charm.URL) (*Charm, error) {
 			uploadedCharm = charmDoc{
 				DocID:         st.docID(curl.String()),
 				EnvUUID:       st.EnvironTag().Id(),
-				URL:           curl,
+				URL:           curl.String(),
 				PendingUpload: true,
 				Placeholder:   false,
 			}
@@ -913,7 +932,7 @@ func (st *State) PrepareStoreCharmUpload(curl *charm.URL) (*Charm, error) {
 		return ops, nil
 	}
 	if err = st.run(buildTxn); err == nil {
-		return newCharm(st, &uploadedCharm), nil
+		return newCharm(st, &uploadedCharm)
 	}
 	return nil, errors.Trace(err)
 }
@@ -958,7 +977,7 @@ func (st *State) AddStoreCharmPlaceholder(curl *charm.URL) (err error) {
 		placeholderCharm := &charmDoc{
 			DocID:       st.docID(curl.String()),
 			EnvUUID:     st.EnvironTag().Id(),
-			URL:         curl,
+			URL:         curl.String(),
 			Placeholder: true,
 		}
 		ops = append(ops, txn.Op{
@@ -989,7 +1008,11 @@ func (st *State) deleteOldPlaceholderCharmsOps(curl *charm.URL) ([]txn.Op, error
 	}
 	var ops []txn.Op
 	for _, doc := range docs {
-		if doc.URL.Revision >= curl.Revision {
+		docURL, err := charm.ParseURL(doc.URL)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		if docURL.Revision >= curl.Revision {
 			continue
 		}
 		ops = append(ops, txn.Op{

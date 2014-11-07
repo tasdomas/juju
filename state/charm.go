@@ -11,9 +11,9 @@ import (
 
 // charmDoc represents the internal state of a charm in MongoDB.
 type charmDoc struct {
-	DocID   string     `bson:"_id"`
-	URL     *charm.URL `bson:"url"`
-	EnvUUID string     `bson:"env-uuid"`
+	DocID   string `bson:"_id"`
+	URL     string `bson:"url"`
+	EnvUUID string `bson:"env-uuid"`
 	Meta    *charm.Meta
 	Config  *charm.Config
 	Actions *charm.Actions
@@ -34,9 +34,10 @@ type charmDoc struct {
 type Charm struct {
 	st  *State
 	doc charmDoc
+	url *charm.URL
 }
 
-func newCharm(st *State, cdoc *charmDoc) *Charm {
+func newCharm(st *State, cdoc *charmDoc) (*Charm, error) {
 	// Because we probably just read the doc from state, make sure we
 	// unescape any config option names for "$" and ".". See
 	// http://pad.lv/1308146
@@ -48,23 +49,27 @@ func newCharm(st *State, cdoc *charmDoc) *Charm {
 		}
 		cdoc.Config = unescapedConfig
 	}
-	return &Charm{st: st, doc: *cdoc}
+	url, err := charm.ParseURL(cdoc.URL)
+	if err != nil {
+		return nil, err
+	}
+	return &Charm{st: st, doc: *cdoc, url: url}, nil
 }
 
 func (c *Charm) String() string {
-	return c.doc.URL.String()
+	return c.url.String()
 }
 
 // URL returns the URL that identifies the charm.
 func (c *Charm) URL() *charm.URL {
-	clone := *c.doc.URL
+	clone := *c.url
 	return &clone
 }
 
 // Revision returns the monotonically increasing charm
 // revision number.
 func (c *Charm) Revision() int {
-	return c.doc.URL.Revision
+	return c.url.Revision
 }
 
 // Meta returns the metadata of the charm.

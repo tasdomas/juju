@@ -239,7 +239,7 @@ func (s *StateSuite) TestAddCharm(c *gc.C) {
 	err = s.charms.FindId(state.DocID(s.State, curl.String())).One(&doc)
 	c.Assert(err, gc.IsNil)
 	c.Logf("%#v", doc)
-	c.Assert(doc.URL, gc.DeepEquals, curl)
+	c.Assert(doc.URL, gc.DeepEquals, curl.String())
 }
 
 func (s *StateSuite) TestAddCharmUpdatesPlaceholder(c *gc.C) {
@@ -264,7 +264,7 @@ func (s *StateSuite) TestAddCharmUpdatesPlaceholder(c *gc.C) {
 	err = s.charms.FindId(state.DocID(s.State, curl.String())).All(&docs)
 	c.Assert(err, gc.IsNil)
 	c.Assert(docs, gc.HasLen, 1)
-	c.Assert(docs[0].URL, gc.DeepEquals, curl)
+	c.Assert(docs[0].URL, gc.DeepEquals, curl.String())
 	c.Assert(docs[0].StoragePath, gc.DeepEquals, storagePath)
 
 	// No more placeholder charm.
@@ -279,7 +279,7 @@ func (s *StateSuite) assertPendingCharmExists(c *gc.C, curl *charm.URL) {
 	err := s.charms.FindId(state.DocID(s.State, curl.String())).One(&doc)
 	c.Assert(err, gc.IsNil)
 	c.Logf("%#v", doc)
-	c.Assert(doc.URL, gc.DeepEquals, curl)
+	c.Assert(doc.URL, gc.DeepEquals, curl.String())
 	c.Assert(doc.PendingUpload, jc.IsTrue)
 	c.Assert(doc.Placeholder, jc.IsFalse)
 	c.Assert(doc.Meta, gc.IsNil)
@@ -466,7 +466,7 @@ func (s *StateSuite) assertPlaceholderCharmExists(c *gc.C, curl *charm.URL) {
 	doc := state.CharmDoc{}
 	err := s.charms.FindId(state.DocID(s.State, curl.String())).One(&doc)
 	c.Assert(err, gc.IsNil)
-	c.Assert(doc.URL, gc.DeepEquals, curl)
+	c.Assert(doc.URL, gc.DeepEquals, curl.String())
 	c.Assert(doc.PendingUpload, jc.IsFalse)
 	c.Assert(doc.Placeholder, jc.IsTrue)
 	c.Assert(doc.Meta, gc.IsNil)

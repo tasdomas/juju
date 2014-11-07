@@ -395,11 +395,11 @@ func (s *upgradesSuite) TestAddEnvUUIDToCharms(c *gc.C) {
 
 	var newDoc charmDoc
 	s.FindId(c, coll, newIDs[0], &newDoc)
-	c.Assert(newDoc.URL.String(), gc.Equals, "local:series/dummy-1")
+	c.Assert(newDoc.URL, gc.Equals, "local:series/dummy-1")
 	c.Assert(newDoc.BundleSha256, gc.Equals, "series-dummy-1-sha256")
 
 	s.FindId(c, coll, newIDs[1], &newDoc)
-	c.Assert(newDoc.URL.String(), gc.Equals, "local:anotherseries/dummy-2")
+	c.Assert(newDoc.URL, gc.Equals, "local:anotherseries/dummy-2")
 	c.Assert(newDoc.BundleSha256, gc.Equals, "anotherseries-dummy-2-sha256")
 }
 
