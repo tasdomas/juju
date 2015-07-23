@@ -42,9 +42,12 @@ type Context interface {
 	HookVars(paths Paths) []string
 	ActionData() (*ActionData, error)
 	SetProcess(process *os.Process)
-	Flush(badge string, failure error) error
 	HasExecutionSetUnitStatus() bool
 	ResetExecutionSetUnitStatus()
+
+	// Context life-cycle methods.
+	Prepare() error
+	Flush(badge string, failure error) error
 }
 
 // Paths exposes the paths needed by Runner.
@@ -87,10 +90,13 @@ func (runner *runner) Context() Context {
 func (runner *runner) RunCommands(commands string) (*utilexec.ExecResponse, error) {
 	srv, err := runner.startJujucServer()
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 	defer srv.Close()
-
+	err = runner.context.Prepare()
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
 	env := runner.context.HookVars(runner.paths)
 	command := utilexec.RunParams{
 		Commands:    commands,
@@ -99,17 +105,21 @@ func (runner *runner) RunCommands(commands string) (*utilexec.ExecResponse, erro
 	}
 	err = command.Run()
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 	runner.context.SetProcess(command.Process())
 
 	// Block and wait for process to finish
 	result, err := command.Wait()
-	return result, runner.context.Flush("run commands", err)
+	return result, errors.Trace(runner.context.Flush("run commands", err))
 }
 
 // RunAction exists to satisfy the Runner interface.
 func (runner *runner) RunAction(actionName string) error {
+	err := runner.context.Prepare()
+	if err != nil {
+		return errors.Trace(err)
+	}
 	if _, err := runner.context.ActionData(); err != nil {
 		return errors.Trace(err)
 	}
@@ -124,10 +134,13 @@ func (runner *runner) RunHook(hookName string) error {
 func (runner *runner) runCharmHookWithLocation(hookName, charmLocation string) error {
 	srv, err := runner.startJujucServer()
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 	defer srv.Close()
-
+	err = runner.context.Prepare()
+	if err != nil {
+		return errors.Trace(err)
+	}
 	env := runner.context.HookVars(runner.paths)
 	if version.Current.OS == version.Windows {
 		// TODO(fwereade): somehow consolidate with utils/exec?
@@ -143,7 +156,7 @@ func (runner *runner) runCharmHookWithLocation(hookName, charmLocation string) e
 	} else {
 		err = runner.runCharmHook(hookName, env, charmLocation)
 	}
-	return runner.context.Flush(hookName, err)
+	return errors.Trace(runner.context.Flush(hookName, err))
 }
 
 func (runner *runner) runCharmHook(hookName string, env []string, charmLocation string) error {

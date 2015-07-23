@@ -24,6 +24,13 @@ func (e *missingHookError) Error() string {
 
 func IsMissingHookError(err error) bool {
 	_, ok := err.(*missingHookError)
+	if ok {
+		return ok
+	}
+	jerr, err_ok := err.(*errors.Err)
+	if err_ok {
+		_, ok = jerr.Cause().(*missingHookError)
+	}
 	return ok
 }
 
