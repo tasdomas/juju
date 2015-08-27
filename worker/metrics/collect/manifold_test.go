@@ -140,6 +140,7 @@ func (s *ManifoldSuite) TestAvailability(c *gc.C) {
 	err = collectEntity.Do(nil)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(recorder.batches, gc.HasLen, 0)
+	c.Assert(availability.running, jc.IsFalse)
 
 	charmdir = &dummyCharmdir{available: true}
 	s.dummyResources["charmdir-name"] = dt.StubResource{Output: charmdir}
@@ -150,6 +151,7 @@ func (s *ManifoldSuite) TestAvailability(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(recorder.closed, jc.IsTrue)
 	c.Assert(recorder.batches, gc.HasLen, 1)
+	c.Assert(availability.running, jc.IsFalse)
 }
 
 // TestNoMetricsDeclared tests that if metrics are not declared, none are
@@ -227,6 +229,7 @@ type dummyCharmdir struct {
 	charmdir.Consumer
 
 	available bool
+	running   bool
 }
 
 func (a *dummyCharmdir) Run(f func() error) (bool, error) {
