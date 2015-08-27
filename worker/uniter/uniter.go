@@ -23,6 +23,7 @@ import (
 	"github.com/juju/juju/state/watcher"
 	"github.com/juju/juju/version"
 	"github.com/juju/juju/worker"
+	"github.com/juju/juju/worker/charmdir"
 	"github.com/juju/juju/worker/leadership"
 	"github.com/juju/juju/worker/uniter/actions"
 	"github.com/juju/juju/worker/uniter/charm"
@@ -77,6 +78,7 @@ type Uniter struct {
 	newOperationExecutor NewExecutorFunc
 
 	leadershipTracker leadership.Tracker
+	charmDirLocker    charmdir.Locker
 
 	hookLock    *fslock.Lock
 	runListener *RunListener
@@ -99,6 +101,7 @@ type UniterParams struct {
 	LeadershipTracker    leadership.Tracker
 	DataDir              string
 	MachineLock          *fslock.Lock
+	CharmDirLocker       charmdir.Locker
 	UpdateStatusSignal   TimedSignal
 	NewOperationExecutor NewExecutorFunc
 	// TODO (mattyw, wallyworld, fwereade) Having the observer here make this approach a bit more legitimate, but it isn't.
@@ -559,15 +562,27 @@ func (u *Uniter) runOperation(creator creator) (err error) {
 	}
 	errorMessage = op.String()
 	before := u.operationState()
+
+	// If we're about to execute an upgrade operation, ensure that
+	// the charmdir is not available for concurrent workers.
+	if before.Kind == operation.Upgrade {
+		u.charmDirLocker.NotAvailable()
+	}
+
 	defer func() {
+		after := u.operationState()
+
 		// Check that if we lose leadership as a result of this
 		// operation, we want to start getting leader settings events,
 		// or if we gain leadership we want to stop receiving those
 		// events.
-		if after := u.operationState(); before.Leader != after.Leader {
+		if before.Leader != after.Leader {
 			// TODO(axw)
 			//u.f.WantLeaderSettingsEvents(before.Leader)
 		}
+
+		// Update availability based on started state.
+		u.charmDirLocker.SetAvailable(after.Started)
 	}()
 	return u.operationExecutor.Run(op)
 }
