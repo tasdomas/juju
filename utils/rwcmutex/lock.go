@@ -1,44 +1,26 @@
-package charmdir
+// Copyright 2015 Canonical Ltd.
+// Licensed under the AGPLv3, see LICENCE file for details.
 
-import "sync"
+package rwcmutex
 
-// Lock defines a read-write lock that can be interrupted as part of a
+import "launchpad.net/tomb"
+
+// Lock defines a read-write lock that can be closed as part of a
 // coordinated shutdown process.
 //
-// Once a Lock is interrupted, Run() will exit and all other blocked calls will
+// Once a Lock is closed, Run() will exit and all other blocked calls will
 // return false. At this point the Lock stops functioning and all subsequent
 // operations will fail, returning false.
 //
-// Interrupting a Lock should be considered a destructive, non-recoverable
+// Closing a Lock should be considered a destructive, non-recoverable
 // operation on the Lock instance.
-type Lock interface {
-	// Run should be called from a separate goroutine or a Worker that is responsible for
-	// managing the Lock. It returns when the Lock has been interrupted, after which the Lock
-	// instance should no longer be used.
-	Run()
+type Lock struct {
+	tomb tomb.Tomb
 
-	// RLock returns whether a read-lock is acquired.
-	RLock(abort <-chan struct{}) bool
-
-	// RUnlock returns whether a read-lock was released.
-	RUnlock(abort <-chan struct{}) bool
-
-	// Lock returns whether a write-lock was acquired.
-	Lock(abort <-chan struct{}) bool
-
-	// Unlock returns whether a write-lock was released.
-	Unlock(abort <-chan struct{}) bool
-}
-
-type lock struct {
 	commands chan *lockCommand
 
-	// stop is used to shutdown the lock independently from the control channel
-	// used by Lock interface callers.
-	stop <-chan struct{}
-
-	// abort is used to internally shutdown the lock if a command was interrupted.
-	abort chan struct{}
+	// closing is used to internally shutdown the lock if a command was closed.
+	closing chan struct{}
 
 	// state holds the number of readers if > 0, indicates "unlocked" when == 0, and
 	// indicates "write-locked" if -1.
@@ -50,9 +32,6 @@ type lock struct {
 
 	// pendingOps represents the enqueued, blocked lock operations.
 	pendingOps []*lockCommand
-
-	mu      sync.Mutex
-	running bool
 }
 
 type lockCommand struct {
@@ -69,51 +48,57 @@ const (
 	cmdUnlock  cmdType = iota
 )
 
-// NewLock creates a new Lock. The stop control channel may be closed to
-// interrupt and shutdown the lock independently of any Lock method callers.
-func NewLock(stop <-chan struct{}) Lock {
-	return &lock{
+// NewLock creates a new Lock.
+func NewLock() *Lock {
+	lock := &Lock{
 		commands: make(chan *lockCommand),
-		stop:     stop,
-		abort:    make(chan struct{}),
+		closing:  make(chan struct{}),
 	}
+	go lock.loop()
+	return lock
 }
 
-// RLock implements Lock.
-func (l *lock) RLock(abort <-chan struct{}) bool {
-	return l.do(abort, cmdRLock)
+// Close closes the lock.
+func (l *Lock) Close() error {
+	l.tomb.Kill(nil)
+	return l.tomb.Wait()
 }
 
-// RUnlock implements Lock.
-func (l *lock) RUnlock(abort <-chan struct{}) bool {
-	return l.do(abort, cmdRUnlock)
+// RLock acquires a read-lock and returns whether it succeeded.
+func (l *Lock) RLock(closing <-chan struct{}) bool {
+	return l.do(closing, cmdRLock)
 }
 
-// Lock implements Lock.
-func (l *lock) Lock(abort <-chan struct{}) bool {
-	return l.do(abort, cmdLock)
+// RUnlock releases a read-lock and returns whether it succeeded.
+func (l *Lock) RUnlock() bool {
+	return l.do(nil, cmdRUnlock)
 }
 
-// Unlock implements Lock.
-func (l *lock) Unlock(abort <-chan struct{}) bool {
-	return l.do(abort, cmdUnlock)
+// Lock acquires a write-lock and returns whether it succeeded.
+func (l *Lock) Lock(closing <-chan struct{}) bool {
+	return l.do(closing, cmdLock)
 }
 
-func (l *lock) do(abort <-chan struct{}, cmd cmdType) bool {
-	var running bool
-	l.mu.Lock()
-	running = l.running
-	l.mu.Unlock()
+// Unlock releases a write-lock and returns whether it succeeded.
+func (l *Lock) Unlock() bool {
+	return l.do(nil, cmdUnlock)
+}
 
-	if !running {
-		return false
-	}
-
+func (l *Lock) do(closing <-chan struct{}, cmd cmdType) bool {
 	ch := make(chan bool)
-	l.commands <- &lockCommand{cmdType: cmd, ch: ch}
 	select {
-	case <-abort:
-		defer close(l.abort)
+	case <-l.tomb.Dying():
+		return false
+	case <-closing:
+		close(l.closing)
+		<-l.tomb.Dying()
+		return false
+	case l.commands <- &lockCommand{cmdType: cmd, ch: ch}:
+	}
+	select {
+	case <-closing:
+		close(l.closing)
+		<-l.tomb.Dying()
 		return false
 	case stopped := <-ch:
 		if stopped {
@@ -123,15 +108,8 @@ func (l *lock) do(abort <-chan struct{}, cmd cmdType) bool {
 	}
 }
 
-// Run implements Lock.
-func (l *lock) Run() {
-	l.loop()
-}
-
-func (l *lock) loop() {
-	l.mu.Lock()
-	l.running = true
-	l.mu.Unlock()
+func (l *Lock) loop() {
+	defer l.tomb.Done()
 
 LOOP:
 	for {
@@ -167,22 +145,17 @@ LOOP:
 					}
 				}
 			}
-		case <-l.stop:
+		case <-l.tomb.Dying():
 			l.shutdown()
 			return
-		case <-l.abort:
+		case <-l.closing:
 			l.shutdown()
 			return
 		}
 	}
 }
 
-func (l *lock) shutdown() {
-	// TODO(cmars): I suspect a race condition among concurrent calls to `do` around a shutdown.
-	l.mu.Lock()
-	l.running = false
-	l.mu.Unlock()
-
+func (l *Lock) shutdown() {
 	for _, op := range l.pendingOps {
 		select {
 		case op.ch <- true:
@@ -191,7 +164,7 @@ func (l *lock) shutdown() {
 	}
 }
 
-func (l *lock) canExecute(cmd *lockCommand) bool {
+func (l *Lock) canExecute(cmd *lockCommand) bool {
 	switch cmd.cmdType {
 	case cmdRLock:
 		return true
@@ -205,7 +178,7 @@ func (l *lock) canExecute(cmd *lockCommand) bool {
 	panic("unknown command")
 }
 
-func (l *lock) execute(cmd *lockCommand) {
+func (l *Lock) execute(cmd *lockCommand) {
 	switch cmd.cmdType {
 	case cmdRLock:
 		l.state++
@@ -213,6 +186,8 @@ func (l *lock) execute(cmd *lockCommand) {
 		// TODO: check that we didn't unlock when we weren't locked?
 		if l.state > 0 {
 			l.state--
+		} else {
+			panic("cannot read-unlock a non-read-locked lock")
 		}
 	case cmdLock:
 		if l.state > 0 {
@@ -226,6 +201,8 @@ func (l *lock) execute(cmd *lockCommand) {
 		if l.state < 0 {
 			l.state++
 			// TODO: check that state didn't get less than -1?
+		} else {
+			panic("cannot write-unlock a non-write-locked lock")
 		}
 	default:
 		panic("unknown command")
