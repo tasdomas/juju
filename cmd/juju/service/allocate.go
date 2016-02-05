@@ -21,7 +21,7 @@ import (
 	"github.com/juju/juju/apiserver/params"
 )
 
-var budgetWithLimitRe = regexp.MustCompile(`^[a-zA-Z0-9\-]+:[1-9][0-9]*$`)
+var budgetWithLimitRe = regexp.MustCompile(`^[a-zA-Z0-9\-]+:[0-9]+$`)
 
 // AllocateBudget implements the DeployStep interface.
 type AllocateBudget struct {
@@ -32,7 +32,7 @@ type AllocateBudget struct {
 
 // SetFlags is part of the DeployStep interface.
 func (a *AllocateBudget) SetFlags(f *gnuflag.FlagSet) {
-	f.StringVar(&a.AllocationSpec, "budget", "", "budget and allocation limit")
+	f.StringVar(&a.AllocationSpec, "budget", "personal:0", "budget and allocation limit")
 }
 
 // RunPre is part of the DeployStep interface.
