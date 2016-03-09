@@ -18,10 +18,12 @@ import (
 	corecharm "gopkg.in/juju/charm.v6-unstable"
 
 	coretesting "github.com/juju/juju/testing"
+	"github.com/juju/juju/worker"
 	"github.com/juju/juju/worker/dependency"
 	dt "github.com/juju/juju/worker/dependency/testing"
 	"github.com/juju/juju/worker/metrics/collect"
 	"github.com/juju/juju/worker/metrics/spool"
+	workertesting "github.com/juju/juju/worker/testing"
 	"github.com/juju/juju/worker/uniter/runner/context"
 )
 
@@ -41,10 +43,16 @@ var _ = gc.Suite(&handlerSuite{})
 
 func (s *handlerSuite) SetUpTest(c *gc.C) {
 	s.BaseSuite.SetUpTest(c)
+
+	fakeTimer := workertesting.NewMockTimer(coretesting.LongWait)
+	fakeTimerFunc := func(d time.Duration) worker.PeriodicTimer {
+		return fakeTimer
+	}
 	s.manifoldConfig = collect.ManifoldConfig{
 		AgentName:       "agent-name",
 		MetricSpoolName: "metric-spool-name",
 		CharmDirName:    "charmdir-name",
+		NewTimer:        fakeTimerFunc,
 	}
 	s.manifold = collect.Manifold(s.manifoldConfig)
 	s.dataDir = c.MkDir()

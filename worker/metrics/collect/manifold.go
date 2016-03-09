@@ -90,6 +90,7 @@ type ManifoldConfig struct {
 	AgentName       string
 	MetricSpoolName string
 	CharmDirName    string
+	NewTimer        worker.NewTimerFunc
 }
 
 // Manifold returns a collect-metrics manifold.
@@ -105,7 +106,7 @@ func Manifold(config ManifoldConfig) dependency.Manifold {
 			if err != nil {
 				return nil, err
 			}
-			return spool.NewPeriodicWorker(collector.Do, collector.period, worker.NewTimer, collector.stop), nil
+			return spool.NewPeriodicWorker(collector.Do, collector.period, config.NewTimer, collector.stop), nil
 		},
 	}
 }

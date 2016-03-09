@@ -13,6 +13,7 @@ import (
 	coretesting "github.com/juju/juju/testing"
 	"github.com/juju/juju/worker"
 	"github.com/juju/juju/worker/statushistorypruner"
+	workertesting "github.com/juju/juju/worker/testing"
 )
 
 type statusHistoryPrunerSuite struct {
@@ -22,7 +23,7 @@ type statusHistoryPrunerSuite struct {
 var _ = gc.Suite(&statusHistoryPrunerSuite{})
 
 func (s *statusHistoryPrunerSuite) TestWorkerCallsPrune(c *gc.C) {
-	fakeTimer := newMockTimer(coretesting.LongWait)
+	fakeTimer := workertesting.NewMockTimer(coretesting.LongWait)
 
 	fakeTimerFunc := func(d time.Duration) worker.PeriodicTimer {
 		// construction of timer should be with 0 because we intend it to
@@ -44,7 +45,7 @@ func (s *statusHistoryPrunerSuite) TestWorkerCallsPrune(c *gc.C) {
 		c.Assert(worker.Stop(pruner), jc.ErrorIsNil)
 	})
 
-	err = fakeTimer.fire()
+	err = fakeTimer.Fire()
 	c.Check(err, jc.ErrorIsNil)
 
 	var passedLogs int
@@ -58,7 +59,7 @@ func (s *statusHistoryPrunerSuite) TestWorkerCallsPrune(c *gc.C) {
 	// Reset will have been called with the actual PruneInterval
 	var period time.Duration
 	select {
-	case period = <-fakeTimer.period:
+	case period = <-fakeTimer.Period:
 	case <-time.After(coretesting.LongWait):
 		c.Fatal("timed out waiting for period reset by pruner")
 	}
@@ -66,7 +67,7 @@ func (s *statusHistoryPrunerSuite) TestWorkerCallsPrune(c *gc.C) {
 }
 
 func (s *statusHistoryPrunerSuite) TestWorkerWontCallPruneBeforeFiringTimer(c *gc.C) {
-	fakeTimer := newMockTimer(coretesting.LongWait)
+	fakeTimer := workertesting.NewMockTimer(coretesting.LongWait)
 
 	fakeTimerFunc := func(d time.Duration) worker.PeriodicTimer {
 		// construction of timer should be with 0 because we intend it to
@@ -92,39 +93,6 @@ func (s *statusHistoryPrunerSuite) TestWorkerWontCallPruneBeforeFiringTimer(c *g
 	case <-facade.passedMaxLogs:
 		c.Fatal("called before firing timer.")
 	case <-time.After(coretesting.LongWait):
-	}
-}
-
-type mockTimer struct {
-	period chan time.Duration
-	c      chan time.Time
-}
-
-func (t *mockTimer) Reset(d time.Duration) bool {
-	select {
-	case t.period <- d:
-	case <-time.After(coretesting.LongWait):
-		panic("timed out waiting for timer to reset")
-	}
-	return true
-}
-
-func (t *mockTimer) CountDown() <-chan time.Time {
-	return t.c
-}
-
-func (t *mockTimer) fire() error {
-	select {
-	case t.c <- time.Time{}:
-	case <-time.After(coretesting.LongWait):
-		return errors.New("timed out waiting for pruner to run")
-	}
-	return nil
-}
-
-func newMockTimer(d time.Duration) *mockTimer {
-	return &mockTimer{period: make(chan time.Duration, 1),
-		c: make(chan time.Time),
 	}
 }
 

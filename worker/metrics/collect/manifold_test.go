@@ -17,6 +17,7 @@ import (
 
 	"github.com/juju/juju/agent"
 	coretesting "github.com/juju/juju/testing"
+	"github.com/juju/juju/worker"
 	"github.com/juju/juju/worker/dependency"
 	dt "github.com/juju/juju/worker/dependency/testing"
 	"github.com/juju/juju/worker/fortress"
@@ -46,6 +47,7 @@ func (s *ManifoldSuite) SetUpTest(c *gc.C) {
 		AgentName:       "agent-name",
 		MetricSpoolName: "metric-spool-name",
 		CharmDirName:    "charmdir-name",
+		NewTimer:        worker.NewTimer,
 	}
 	s.manifold = collect.Manifold(s.manifoldConfig)
 	s.dataDir = c.MkDir()
