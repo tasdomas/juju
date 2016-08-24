@@ -69,7 +69,7 @@ func (s *MetricSenderSuite) TestSendMetrics(c *gc.C) {
 	unsent1 := s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Time: &now})
 	unsent2 := s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Time: &now})
 	s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Sent: true, Time: &now})
-	err := metricsender.SendMetrics(s.State, &sender, 10)
+	err := metricsender.SendMetrics(s.State.ModelTag(), s.State, &sender, 10)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sender.Data, gc.HasLen, 1)
 	c.Assert(sender.Data[0], gc.HasLen, 2)
@@ -93,7 +93,7 @@ func (s *MetricSenderSuite) TestSendBulkMetrics(c *gc.C) {
 	for i := 0; i < 100; i++ {
 		s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Time: &now})
 	}
-	err := metricsender.SendMetrics(s.State, &sender, 10)
+	err := metricsender.SendMetrics(s.State.ModelTag(), s.State, &sender, 10)
 	c.Assert(err, jc.ErrorIsNil)
 
 	c.Assert(sender.Data, gc.HasLen, 10)
@@ -109,9 +109,9 @@ func (s *MetricSenderSuite) TestDontSendWithNopSender(c *gc.C) {
 	for i := 0; i < 3; i++ {
 		s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Sent: false, Time: &now})
 	}
-	err := metricsender.SendMetrics(s.State, metricsender.NopSender{}, 10)
+	err := metricsender.SendMetrics(s.State.ModelTag(), s.State, metricsender.NopSender{}, 10)
 	c.Assert(err, jc.ErrorIsNil)
-	sent, err := s.State.CountOfSentMetrics()
+	sent, err := s.State.CountOfSentMetrics(s.State.ModelTag())
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sent, gc.Equals, 3)
 }
@@ -122,7 +122,7 @@ func (s *MetricSenderSuite) TestFailureIncrementsConsecutiveFailures(c *gc.C) {
 	for i := 0; i < 3; i++ {
 		s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Sent: false, Time: &now})
 	}
-	err := metricsender.SendMetrics(s.State, sender, 1)
+	err := metricsender.SendMetrics(s.State.ModelTag(), s.State, sender, 1)
 	c.Assert(err, gc.ErrorMatches, "something went wrong")
 	mm, err := s.State.MetricsManager()
 	c.Assert(err, jc.ErrorIsNil)
@@ -138,7 +138,7 @@ func (s *MetricSenderSuite) TestFailuresResetOnSuccessfulSend(c *gc.C) {
 	for i := 0; i < 3; i++ {
 		s.Factory.MakeMetric(c, &factory.MetricParams{Unit: s.unit, Sent: false, Time: &now})
 	}
-	err = metricsender.SendMetrics(s.State, metricsender.NopSender{}, 10)
+	err = metricsender.SendMetrics(s.State.ModelTag(), s.State, metricsender.NopSender{}, 10)
 	c.Assert(err, jc.ErrorIsNil)
 	mm, err = s.State.MetricsManager()
 	c.Assert(err, jc.ErrorIsNil)

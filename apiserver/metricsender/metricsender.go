@@ -11,6 +11,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	wireformat "github.com/juju/romulus/wireformat/metrics"
+	"gopkg.in/juju/names.v2"
 
 	"github.com/juju/juju/state"
 )
@@ -57,14 +58,14 @@ func handleResponse(mm *state.MetricsManager, st MetricsSenderBackend, response 
 // SendMetrics will send any unsent metrics
 // over the MetricSender interface in batches
 // no larger than batchSize.
-func SendMetrics(st MetricsSenderBackend, sender MetricSender, batchSize int) error {
+func SendMetrics(model names.ModelTag, st MetricsSenderBackend, sender MetricSender, batchSize int) error {
 	metricsManager, err := st.MetricsManager()
 	if err != nil {
 		return errors.Trace(err)
 	}
 	sent := 0
 	for {
-		metrics, err := st.MetricsToSend(batchSize)
+		metrics, err := st.MetricsToSend(model, batchSize)
 		if err != nil {
 			return errors.Trace(err)
 		}
@@ -102,17 +103,17 @@ func SendMetrics(st MetricsSenderBackend, sender MetricSender, batchSize int) er
 		}
 		sent += lenM
 	}
-
-	unsent, err := st.CountOfUnsentMetrics()
-	if err != nil {
-		return errors.Trace(err)
-	}
-	sentStored, err := st.CountOfSentMetrics()
-	if err != nil {
-		return errors.Trace(err)
-	}
-	logger.Infof("metrics collection summary: sent:%d unsent:%d (%d sent metrics stored)", sent, unsent, sentStored)
-
+	/*
+		unsent, err := st.CountOfUnsentMetrics()
+		if err != nil {
+			return errors.Trace(err)
+		}
+		sentStored, err := st.CountOfSentMetrics()
+		if err != nil {
+			return errors.Trace(err)
+		}
+		logger.Infof("metrics collection summary: sent:%d unsent:%d (%d sent metrics stored)", sent, unsent, sentStored)
+	*/
 	return nil
 }
 

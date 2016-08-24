@@ -225,7 +225,7 @@ func (st *State) MetricBatch(id string) (*MetricBatch, error) {
 
 // CleanupOldMetrics looks for metrics that are 24 hours old (or older)
 // and have been sent. Any metrics it finds are deleted.
-func (st *State) CleanupOldMetrics() error {
+func (st *State) CleanupOldMetrics(model names.ModelTag) error {
 	// TODO(fwereade): 2016-03-17 lp:1558657
 	now := time.Now()
 	metrics, closer := st.getCollection(metricsC)
@@ -236,6 +236,7 @@ func (st *State) CleanupOldMetrics() error {
 	metricsW := metrics.Writeable()
 	// TODO (mattyw) iter over this.
 	info, err := metricsW.RemoveAll(bson.M{
+		"model-uuid":  model.Id(),
 		"sent":        true,
 		"delete-time": bson.M{"$lte": now},
 	})
@@ -247,12 +248,13 @@ func (st *State) CleanupOldMetrics() error {
 
 // MetricsToSend returns batchSize metrics that need to be sent
 // to the collector
-func (st *State) MetricsToSend(batchSize int) ([]*MetricBatch, error) {
+func (st *State) MetricsToSend(model names.ModelTag, batchSize int) ([]*MetricBatch, error) {
 	var docs []metricBatchDoc
 	c, closer := st.getCollection(metricsC)
 	defer closer()
 	err := c.Find(bson.M{
-		"sent": false,
+		"model-uuid": model.Id(),
+		"sent":       false,
 	}).Limit(batchSize).All(&docs)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -269,22 +271,24 @@ func (st *State) MetricsToSend(batchSize int) ([]*MetricBatch, error) {
 
 // CountOfUnsentMetrics returns the number of metrics that
 // haven't been sent to the collection service.
-func (st *State) CountOfUnsentMetrics() (int, error) {
+func (st *State) CountOfUnsentMetrics(model names.ModelTag) (int, error) {
 	c, closer := st.getCollection(metricsC)
 	defer closer()
 	return c.Find(bson.M{
-		"sent": false,
+		"model-uuid": model.Id(),
+		"sent":       false,
 	}).Count()
 }
 
 // CountOfSentMetrics returns the number of metrics that
 // have been sent to the collection service and have not
 // been removed by the cleanup worker.
-func (st *State) CountOfSentMetrics() (int, error) {
+func (st *State) CountOfSentMetrics(model names.ModelTag) (int, error) {
 	c, closer := st.getCollection(metricsC)
 	defer closer()
 	return c.Find(bson.M{
-		"sent": true,
+		"model-uuid": model.Id(),
+		"sent":       true,
 	}).Count()
 }
 

@@ -6,6 +6,8 @@
 package metricsender
 
 import (
+	"gopkg.in/juju/names.v2"
+
 	"github.com/juju/juju/state"
 )
 
@@ -15,9 +17,9 @@ import (
 // and are reproduced here for use in tests.
 type MetricsSenderBackend interface {
 	MetricsManager() (*state.MetricsManager, error)
-	MetricsToSend(batchSize int) ([]*state.MetricBatch, error)
+	MetricsToSend(model names.ModelTag, batchSize int) ([]*state.MetricBatch, error)
 	SetMetricBatchesSent(batchUUIDs []string) error
-	CountOfUnsentMetrics() (int, error)
-	CountOfSentMetrics() (int, error)
+	CountOfUnsentMetrics(model names.ModelTag) (int, error)
+	CountOfSentMetrics(model names.ModelTag) (int, error)
 	Unit(name string) (*state.Unit, error)
 }

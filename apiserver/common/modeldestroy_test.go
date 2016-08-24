@@ -81,8 +81,8 @@ type testMetricSender struct {
 	jtesting.Stub
 }
 
-func (t *testMetricSender) SendMetrics(st metricsender.MetricsSenderBackend) error {
-	t.AddCall("SendMetrics")
+func (t *testMetricSender) SendMetrics(model names.ModelTag, st metricsender.MetricsSenderBackend) error {
+	t.AddCall("SendMetrics", model)
 	return nil
 }
 
@@ -93,7 +93,10 @@ func (s *destroyModelSuite) TestMetrics(c *gc.C) {
 	err := common.DestroyModel(s.modelManager, s.State.ModelTag())
 	c.Assert(err, jc.ErrorIsNil)
 
-	metricSender.CheckCalls(c, []jtesting.StubCall{{FuncName: "SendMetrics"}})
+	metricSender.CheckCalls(c, []jtesting.StubCall{{
+		FuncName: "SendMetrics",
+		Args:     []interface{}{s.State.ModelTag()},
+	}})
 }
 
 func (s *destroyModelSuite) TestDestroyModel(c *gc.C) {

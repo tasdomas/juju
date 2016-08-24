@@ -95,9 +95,9 @@ func (api *MetricsManagerAPI) CleanupOldMetrics(args params.Entities) (params.Er
 			result.Results[i].Error = common.ServerError(common.ErrPerm)
 			continue
 		}
-		err = api.state.CleanupOldMetrics()
+		err = api.state.CleanupOldMetrics(tag)
 		if err != nil {
-			err = errors.Annotate(err, "failed to cleanup old metrics")
+			err = errors.Annotatef(err, "failed to cleanup old metrics for %s", tag)
 			result.Results[i].Error = common.ServerError(err)
 		}
 	}
@@ -126,9 +126,9 @@ func (api *MetricsManagerAPI) SendMetrics(args params.Entities) (params.ErrorRes
 			result.Results[i].Error = common.ServerError(common.ErrPerm)
 			continue
 		}
-		err = metricsender.SendMetrics(api.state, sender, maxBatchesPerSend)
+		err = metricsender.SendMetrics(tag, api.state, sender, maxBatchesPerSend)
 		if err != nil {
-			err = errors.Annotate(err, "failed to send metrics")
+			err = errors.Annotatef(err, "failed to send metrics for %s", tag)
 			logger.Warningf("%v", err)
 			result.Results[i].Error = common.ServerError(err)
 			continue

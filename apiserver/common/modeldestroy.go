@@ -10,8 +10,8 @@ import (
 	"github.com/juju/juju/apiserver/metricsender"
 )
 
-var sendMetrics = func(st metricsender.MetricsSenderBackend) error {
-	err := metricsender.SendMetrics(st, metricsender.DefaultMetricSender(), metricsender.DefaultMaxBatchesPerSend())
+var sendMetrics = func(model names.ModelTag, st metricsender.MetricsSenderBackend) error {
+	err := metricsender.SendMetrics(model, st, metricsender.DefaultMetricSender(), metricsender.DefaultMaxBatchesPerSend())
 	return errors.Trace(err)
 }
 
@@ -65,6 +65,11 @@ func destroyModel(st ModelManagerBackend, modelTag names.ModelTag, destroyHosted
 			if err = check.DestroyAllowed(); err != nil {
 				return errors.Trace(err)
 			}
+			err = sendMetrics(model.ModelTag(), st)
+			if err != nil {
+				logger.Errorf("failed to send leftover metrics: %v", err)
+			}
+
 		}
 	} else {
 		check := NewBlockChecker(st)
@@ -87,8 +92,7 @@ func destroyModel(st ModelManagerBackend, modelTag names.ModelTag, destroyHosted
 			return errors.Trace(err)
 		}
 	}
-
-	err = sendMetrics(st)
+	err = sendMetrics(model.ModelTag(), st)
 	if err != nil {
 		logger.Errorf("failed to send leftover metrics: %v", err)
 	}
