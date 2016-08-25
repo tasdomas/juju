@@ -5,6 +5,7 @@ package state
 
 import (
 	"github.com/juju/errors"
+	"github.com/juju/schema"
 
 	"github.com/juju/juju/controller"
 	"github.com/juju/juju/environs/config"
@@ -283,10 +284,11 @@ type modelConfigSource struct {
 // overall config values, later values override earlier ones.
 func modelConfigSources(st *State) []modelConfigSource {
 	return []modelConfigSource{
-		{config.JujuDefaultSource, func() (attrValues, error) { return config.ConfigDefaults(), nil }},
+		{config.JujuDefaultSource, st.defaultInheritedConfig},
 		{config.JujuControllerSource, st.controllerInheritedConfig},
-		// We will also support local cloud region, tenant, user etc
+		{config.JujuControllerSource, st.regionInheritedConfig},
 	}
+
 }
 
 const (
@@ -294,11 +296,60 @@ const (
 	controllerInheritedSettingsGlobalKey = "controller"
 )
 
+// defaultInheritedConfig returns config values which are defined
+// as defaults in either Juju or the state's environ provider.
+func (st *State) defaultInheritedConfig() (attrValues, error) {
+	var defaults = make(map[string]interface{})
+	for k, v := range config.ConfigDefaults() {
+		defaults[k] = v
+	}
+	providerDefaults, err := st.environsProviderConfigSchemaSource()
+	if errors.IsNotImplemented(err) {
+		return defaults, nil
+	} else if err != nil {
+		return nil, errors.Trace(err)
+	}
+	fields := schema.FieldMap(providerDefaults.ConfigSchema(), providerDefaults.ConfigDefaults())
+	if coercedAttrs, err := fields.Coerce(defaults, nil); err != nil {
+		return nil, errors.Trace(err)
+	} else {
+		for k, v := range coercedAttrs.(map[string]interface{}) {
+			defaults[k] = v
+		}
+	}
+	return defaults, nil
+}
+
 // controllerInheritedConfig returns the inherited config values
 // sourced from the local cloud config.
 func (st *State) controllerInheritedConfig() (attrValues, error) {
 	settings, err := readSettings(st, globalSettingsC, controllerInheritedSettingsGlobalKey)
 	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return settings.Map(), nil
+}
+
+// regionInheritedConfig returns the configuration attributes for the region in
+// the cloud where the model is targeted.
+func (st *State) regionInheritedConfig() (attrValues, error) {
+	model, err := st.Model()
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	settings, err := readSettings(st,
+		globalSettingsC,
+		regionSettingsGlobalKey(
+			model.Cloud(),
+			model.CloudRegion()),
+	)
+	if err != nil {
+		// Some clouds have no region so we need to handle an empty region by
+		// returning and handling an error or returning nil.
+		// TODO(ro): http://reviews.vapour.ws/r/5454/#comment29388 check for
+		// model.CloudRegion() == "" above and return a NotFound error there,
+		// saving searching for non-existent settings with a partially
+		// constructed key
 		return nil, errors.Trace(err)
 	}
 	return settings.Map(), nil

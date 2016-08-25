@@ -49,6 +49,7 @@ type ModelManagerBackend interface {
 	Export() (description.Model, error)
 	SetUserAccess(subject names.UserTag, target names.Tag, access description.Access) (description.UserAccess, error)
 	LastModelConnection(user names.UserTag) (time.Time, error)
+	DumpAll() (map[string]interface{}, error)
 	Close() error
 }
 
@@ -62,7 +63,7 @@ type Model interface {
 	Owner() names.UserTag
 	Status() (status.StatusInfo, error)
 	Cloud() string
-	CloudCredential() string
+	CloudCredential() (names.CloudCredentialTag, bool)
 	CloudRegion() string
 	Users() ([]description.UserAccess, error)
 	Destroy() error
