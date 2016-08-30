@@ -290,6 +290,7 @@ type DeploymentInfo struct {
 	CharmID         charmstore.CharmID
 	ApplicationName string
 	ModelUUID       string
+	CharmInfo       *apicharms.CharmInfo
 }
 
 func (c *DeployCommand) Info() *cmd.Info {
@@ -443,6 +444,7 @@ func (c *DeployCommand) deployCharm(
 		CharmID:         id,
 		ApplicationName: serviceName,
 		ModelUUID:       uuid,
+		CharmInfo:       charmInfo,
 	}
 
 	for _, step := range c.Steps {

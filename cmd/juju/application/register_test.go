@@ -16,6 +16,7 @@ import (
 	"gopkg.in/macaroon-bakery.v1/httpbakery"
 
 	"github.com/juju/juju/api"
+	apicharms "github.com/juju/juju/api/charms"
 	"github.com/juju/juju/apiserver/params"
 	"github.com/juju/juju/charmstore"
 	coretesting "github.com/juju/juju/testing"
@@ -58,6 +59,11 @@ func (s *registrationSuite) TestMeteredCharm(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
@@ -65,7 +71,88 @@ func (s *registrationSuite) TestMeteredCharm(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	authorization, err := json.Marshal([]byte("hello registration"))
 	authorization = append(authorization, byte(0xa))
+	s.stub.CheckCalls(c, []testing.StubCall{{
+		"APICall", []interface{}{"Charms", "IsMetered", params.CharmURL{URL: "cs:quantal/metered-1"}},
+	}, {
+		"Authorize", []interface{}{metricRegistrationPost{
+			ModelUUID:       "model uuid",
+			CharmURL:        "cs:quantal/metered-1",
+			ApplicationName: "application name",
+			PlanURL:         "someplan",
+			Budget:          "personal",
+			Limit:           "100",
+		}},
+	}, {
+		"APICall", []interface{}{"Application", "SetMetricCredentials", params.ApplicationMetricCredentials{
+			Creds: []params.ApplicationMetricCredential{params.ApplicationMetricCredential{
+				ApplicationName:   "application name",
+				MetricCredentials: authorization,
+			}},
+		}},
+	}})
+}
+
+func (s *registrationSuite) TestOptionalPlanMeteredCharm(c *gc.C) {
+	client := httpbakery.NewClient()
+	d := DeploymentInfo{
+		CharmID: charmstore.CharmID{
+			URL: charm.MustParseURL("cs:quantal/metered-1"),
+		},
+		ApplicationName: "application name",
+		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: false},
+			},
+		},
+	}
+	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
+	err = s.register.RunPost(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d, nil)
+	c.Assert(err, jc.ErrorIsNil)
+	authorization, err := json.Marshal([]byte("hello registration"))
+	authorization = append(authorization, byte(0xa))
+	s.stub.CheckCalls(c, []testing.StubCall{{
+		"APICall", []interface{}{"Charms", "IsMetered", params.CharmURL{URL: "cs:quantal/metered-1"}},
+	}, {
+		"Authorize", []interface{}{metricRegistrationPost{
+			ModelUUID:       "model uuid",
+			CharmURL:        "cs:quantal/metered-1",
+			ApplicationName: "application name",
+			PlanURL:         "someplan",
+			Budget:          "personal",
+			Limit:           "100",
+		}},
+	}, {
+		"APICall", []interface{}{"Application", "SetMetricCredentials", params.ApplicationMetricCredentials{
+			Creds: []params.ApplicationMetricCredential{params.ApplicationMetricCredential{
+				ApplicationName:   "application name",
+				MetricCredentials: authorization,
+			}},
+		}},
+	}})
+}
+
+func (s *registrationSuite) TestPlanNotSpecifiedCharm(c *gc.C) {
+	client := httpbakery.NewClient()
+	d := DeploymentInfo{
+		CharmID: charmstore.CharmID{
+			URL: charm.MustParseURL("cs:quantal/metered-1"),
+		},
+		ApplicationName: "application name",
+		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: nil,
+			},
+		},
+	}
+	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
+	c.Assert(err, jc.ErrorIsNil)
+	err = s.register.RunPost(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d, nil)
+	c.Assert(err, jc.ErrorIsNil)
+	authorization, err := json.Marshal([]byte("hello registration"))
+	authorization = append(authorization, byte(0xa))
 	s.stub.CheckCalls(c, []testing.StubCall{{
 		"APICall", []interface{}{"Charms", "IsMetered", params.CharmURL{URL: "cs:quantal/metered-1"}},
 	}, {
@@ -96,6 +183,11 @@ func (s *registrationSuite) TestMeteredCharmAPIError(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, gc.ErrorMatches, `authorization failed: something failed`)
@@ -121,6 +213,11 @@ func (s *registrationSuite) TestMeteredCharmInvalidAllocation(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	s.register = &RegisterMeteredCharm{
 		Plan:           "someplan",
@@ -141,6 +238,11 @@ func (s *registrationSuite) TestMeteredCharmDeployError(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
@@ -172,6 +274,11 @@ func (s *registrationSuite) TestMeteredLocalCharmWithPlan(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
@@ -213,6 +320,11 @@ func (s *registrationSuite) TestMeteredLocalCharmNoPlan(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
@@ -253,6 +365,11 @@ func (s *registrationSuite) TestMeteredCharmNoPlanSet(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
@@ -297,6 +414,11 @@ func (s *registrationSuite) TestMeteredCharmNoDefaultPlan(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, gc.ErrorMatches, `cs:quantal/metered-1 has no default plan. Try "juju deploy --plan <plan-name> with one of thisplan, thisotherplan"`)
@@ -322,6 +444,11 @@ func (s *registrationSuite) TestMeteredCharmFailToQueryDefaultCharm(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, gc.ErrorMatches, `failed to query default plan:.*`)
@@ -340,6 +467,11 @@ func (s *registrationSuite) TestUnmeteredCharm(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, jc.ErrorIsNil)
@@ -361,6 +493,11 @@ func (s *registrationSuite) TestFailedAuth(c *gc.C) {
 		},
 		ApplicationName: "application name",
 		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: true},
+			},
+		},
 	}
 	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
 	c.Assert(err, gc.ErrorMatches, `authorization failed:.*`)
@@ -456,6 +593,80 @@ func (c *testMetricsRegistrationHandler) ServeHTTP(w http.ResponseWriter, req *h
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+var _ = gc.Suite(&noPlanRegistrationSuite{})
+
+type noPlanRegistrationSuite struct {
+	testing.CleanupSuite
+	stub     *testing.Stub
+	handler  *testMetricsRegistrationHandler
+	server   *httptest.Server
+	register DeployStep
+	ctx      *cmd.Context
+}
+
+func (s *noPlanRegistrationSuite) SetUpTest(c *gc.C) {
+	s.CleanupSuite.SetUpTest(c)
+	s.stub = &testing.Stub{}
+	s.handler = &testMetricsRegistrationHandler{Stub: s.stub}
+	s.server = httptest.NewServer(s.handler)
+	s.register = &RegisterMeteredCharm{
+		Plan:           "",
+		RegisterURL:    s.server.URL,
+		AllocationSpec: "personal:100",
+	}
+	s.ctx = coretesting.Context(c)
+}
+
+func (s *noPlanRegistrationSuite) TearDownTest(c *gc.C) {
+	s.CleanupSuite.TearDownTest(c)
+	s.server.Close()
+}
+func (s *noPlanRegistrationSuite) TestOptionalPlanMeteredCharm(c *gc.C) {
+	client := httpbakery.NewClient()
+	d := DeploymentInfo{
+		CharmID: charmstore.CharmID{
+			URL: charm.MustParseURL("cs:quantal/metered-1"),
+		},
+		ApplicationName: "application name",
+		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: &charm.Plan{Required: false},
+			},
+		},
+	}
+	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
+	c.Assert(err, jc.ErrorIsNil)
+	err = s.register.RunPost(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d, nil)
+	c.Assert(err, jc.ErrorIsNil)
+	s.stub.CheckCalls(c, []testing.StubCall{{
+		"APICall", []interface{}{"Charms", "IsMetered", params.CharmURL{URL: "cs:quantal/metered-1"}},
+	}})
+}
+
+func (s *noPlanRegistrationSuite) TestPlanNotSpecifiedCharm(c *gc.C) {
+	client := httpbakery.NewClient()
+	d := DeploymentInfo{
+		CharmID: charmstore.CharmID{
+			URL: charm.MustParseURL("cs:quantal/metered-1"),
+		},
+		ApplicationName: "application name",
+		ModelUUID:       "model uuid",
+		CharmInfo: &apicharms.CharmInfo{
+			Metrics: &charm.Metrics{
+				Plan: nil,
+			},
+		},
+	}
+	err := s.register.RunPre(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d)
+	c.Assert(err, jc.ErrorIsNil)
+	err = s.register.RunPost(&mockAPIConnection{Stub: s.stub}, client, s.ctx, d, nil)
+	c.Assert(err, jc.ErrorIsNil)
+	s.stub.CheckCalls(c, []testing.StubCall{{
+		"APICall", []interface{}{"Charms", "IsMetered", params.CharmURL{URL: "cs:quantal/metered-1"}},
+	}})
 }
 
 type mockAPIConnection struct {

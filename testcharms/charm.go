@@ -19,6 +19,19 @@ import (
 // Repo provides access to the test charm repository.
 var Repo = testing.NewRepo("charm-repo", "quantal")
 
+// UploadCharmWithMeta pushes a new charm to the charmstore using the specified client.
+func UploadCharmWithMeta(c *gc.C, client *csclient.Client, charmURL, meta, metrics string, revision int) (*charm.URL, charm.Charm) {
+	ch := testing.NewCharm(c, testing.CharmSpec{
+		Meta:     meta,
+		Metrics:  metrics,
+		Revision: revision,
+	})
+	chURL, err := client.UploadCharm(charm.MustParseURL(charmURL), ch)
+	c.Assert(err, jc.ErrorIsNil)
+	SetPublic(c, client, chURL)
+	return chURL, ch
+}
+
 // UploadCharm uploads a charm using the given charm store client, and returns
 // the resulting charm URL and charm.
 //
