@@ -14,7 +14,7 @@ import (
 
 var cleanupLogger = loggo.GetLogger("juju.worker.metricworker.cleanup")
 
-const cleanupPeriod = time.Hour
+const cleanupPeriod = 5 * time.Minute
 
 // NewCleanup creates a new periodic worker that calls the CleanupOldMetrics api.
 func newCleanup(client metricsmanager.MetricsManagerClient, notify chan string) worker.Worker {
